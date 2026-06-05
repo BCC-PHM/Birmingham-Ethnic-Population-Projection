@@ -1,5 +1,10 @@
 setwd("C:/Users/TMPACGAG/OneDrive - Birmingham City Council/Documents/R projects/PHM/BCC ethnic population projection")
-
+# ============================================================
+# 01_mortality_process.R
+# process death register data (joined with demographic data)
+# apply empirical bayes shrinkage 
+# obtain the survival ratios 
+# ============================================================
 
 library(tidyverse)
 library(readr)
