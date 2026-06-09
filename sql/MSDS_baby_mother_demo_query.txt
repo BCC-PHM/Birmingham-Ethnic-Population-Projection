@@ -1,0 +1,34 @@
+/****** Script for SelectTopNRows command from SSMS  ******/
+SELECT distinct
+       a.[AgeRPEndDate]
+      ,a.[ElectoralWardMother]
+      ,a.[EthnicCategoryMother]
+      ,a.[LAD_UAMother]
+      ,a.[Person_ID_Mother]
+      ,a.[MotherPatientId]
+	  ,a.UniqPregID
+	  ,b.[AgeAtBirthMother]
+      ,b.[AgeAtDeathBaby]
+      ,b.[BabyFirstFeedDate]
+      ,b.[BabyFirstFeedIndCode]
+      ,b.[BabyFirstFeedTime]
+      ,b.[BirthOrderMaternitySUS]
+      ,b.[CareProfLIDDel]
+      ,b.[DayOfBirthBaby]
+      ,b.[DayOfDeathBaby]
+	  ,b.YearOfBirthBaby
+	  ,b.PersonBirthDateBaby
+      ,b.[EthnicCategoryBaby]
+      ,b.[Person_ID_Baby]
+      ,b.[Person_ID_Mother]
+      ,b.[PersonPhenSex]
+      ,b.[UniqPregID]
+      ,b.[BabyPatientId]
+	  ,PregOutcome
+
+  FROM [EAT_Reporting_BSOL].[Maternity_MSDS].[MSD001MotherDemog] as a
+  left join [EAT_Reporting_BSOL].[Maternity_MSDS].[MSD401BabyDemographics] as b
+  on a.UniqPregID = b.UniqPregID
+  AND a.Person_ID_Mother = b.Person_ID_Mother
+  where b.YearOfBirthBaby >= '2019' AND (PregOutcome = '01'OR PregOutcome = '10')
+  order by a.Person_ID_Mother
