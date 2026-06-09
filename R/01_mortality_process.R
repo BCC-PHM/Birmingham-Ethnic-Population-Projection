@@ -9,11 +9,12 @@ setwd("C:/Users/TMPACGAG/OneDrive - Birmingham City Council/Documents/R projects
 library(tidyverse)
 library(readr)
 library(sf)
+library(readxl)
 
 ward_map = st_read("data/boundaries/boundaries-wards-2022-birmingham/boundaries-wards-2022-birmingham.shp")
 
 
-death_data = read_delim("data/death_data.txt", 
+death_data = read_delim("data/mortality/death_data.txt", 
                          delim = "\t", escape_double = FALSE, 
                          trim_ws = TRUE)
 
@@ -90,6 +91,7 @@ Bham_only_death_data = death_data %>%
 death_counts = Bham_only_death_data %>% 
   mutate(year = year(DATE_OF_DEATH)) %>%
   filter(year >= 2017, year <= 2024) %>%
+  filter(! year %in% c(2020,2021)) %>% 
   group_by(eth_code, DEC_SEX, age_group_5yr, year) %>%
   summarise(deaths = n(), .groups = "drop")
 
@@ -219,6 +221,9 @@ bham_ward_ethnic_composition = ward_ethnic_composition %>%
   mutate(Ward_pop = sum(Observation),
          Per_com = Observation/Ward_pop)
   
+
+
+# write.csv(bham_ward_ethnic_composition, "data/processed/bham_ward_ethnic_composition.csv")
          
 #----------------------------------------------
 #death counts by ward x sex x age x year
@@ -226,6 +231,7 @@ bham_ward_ethnic_composition = ward_ethnic_composition %>%
 death_counts_redis = Bham_only_death_data_na_eth %>% 
   mutate(year = year(DATE_OF_DEATH)) %>%
   filter(year >= 2017, year <= 2024) %>%
+  filter(! year %in% c(2020,2021)) %>% 
   group_by(WARD_OF_RESIDENCE_CODE, DEC_SEX, age_group_5yr, year) %>%
   summarise(deaths = n(), .groups = "drop")
 
@@ -261,7 +267,7 @@ death_counts_final = death_counts_final %>%
     eth_code      = levels(Bham_only_death_data$eth_code),
     DEC_SEX       = c("Male", "Female"),
     age_group_5yr = age_levels,
-    year          = 2017:2024,
+    year          = c(2017,2018,2019,2022,2023,2024),
     fill          = list(deaths_observed = 0, deaths_redistributed = 0, deaths_total = 0)
   ) %>% 
   mutate(age_group_5yr = factor(age_group_5yr, levels = age_levels))
@@ -349,6 +355,8 @@ bham_eth_pop = eth_pop %>%
   group_by(eth_code,DEC_SEX,age_group_5yr) %>% 
   summarise(Observation = sum(Observation),
             .groups = "drop")
+
+# write.csv(bham_eth_pop, "data/processed/bham_eth_pop.csv")
 
 ##########################################################################
 #==================================================================
