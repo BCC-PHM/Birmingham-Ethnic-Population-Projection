@@ -91,6 +91,8 @@ mixing_matrix_complete = MSDS_data_filtered %>%
   print(n = 144)
 
 
+write.csv(mixing_matrix_complete, "data/processed/birth_transition_matrix.csv")
+
 
 # mixing_matrix_complete %>%
 #   group_by(eth_code_mother) %>%
