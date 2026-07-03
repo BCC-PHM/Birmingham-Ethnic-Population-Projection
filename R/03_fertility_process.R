@@ -775,16 +775,69 @@ fertility_projected_annual = stacked %>%
   select(Year, eth_code, age_group_5yr, single_age, fx)
 
 
-# fertility_projected_annual %>%
-#   filter(Year == 2021) %>%
-#   group_by(eth_code) %>%
-#   summarise(tfr = sum(fx)) %>%
-#   arrange(tfr)
+fertility_projected_annual %>%
+  filter(Year == 2021) %>%
+  group_by(eth_code) %>%
+  summarise(tfr = sum(fx)) %>%
+  arrange(tfr)
 # 
 # fertility_projected_annual %>%
 #   filter(Year == 2022) %>%
 #   group_by(eth_code) %>%
 #   summarise(tfr = sum(fx)) %>%
 #   arrange(tfr)
+
+write.csv(fertility_projected_annual, "data/processed/Birmingham_fertility_rates_single_year.csv")
+
+
+
+#===============================================================
+#make some plots
+
+eth_order = c("WBI", "WHO", "MIX",           # White + Mixed
+              "IND", "PAK", "BAN", "CHI", "OAS",  # Asian
+              "BLA", "BLC", "OBL",           # Black
+              "OTH")                          # Other
+
+eth_lookup = tibble(eth_code = names(eth_names),
+                    eth_name = unname(eth_names)) %>% 
+  mutate(eth_name = factor(eth_name, levels = eth_names[eth_order]))
+
+stacked %>%
+  left_join(eth_lookup, by = "eth_code") %>%
+  ggplot(aes(x = single_age))+
+  geom_line(aes(y = fx_obs, colour = "Grouped"),
+            linewidth = 1) +
+  geom_line(aes(y = corrected_fx_single, colour = "Single year"),
+            linewidth = 1) +
+  scale_color_manual(values = c("Single year" = "#D00070",
+                                "Grouped"       = "#3c3c3b"))+
+  scale_x_continuous(limits = c(15,49), breaks = seq(15,49,2))+
+  labs(
+    title = "Estimated singe year ASFRs from five year grouped ASFRs of women by ethnicity \nin Birmingham 2022-2025",
+    x = "Single year of age",
+    y = "Age-sepcific fertility rate",
+    caption = "Rates pooled over 2022–2025 births (NHS MSDS) against mid-2021 Census female population.\nFive-year ASFRs transformed to single year of age via Hadwiger schedules."
+  ) +
+  labs(colour = "")+
+  theme_minimal(base_size =12)+
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust=0.5),
+        axis.text.x = element_text(size = 8, angle = 90, hjust = 1),
+        plot.caption = element_text(hjust=-0))+
+  facet_wrap(~eth_name)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
