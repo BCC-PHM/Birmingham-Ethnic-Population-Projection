@@ -453,4 +453,338 @@ fertility_input_CCM =smoothed_data %>%
 
 write.csv(fertility_input_CCM, "data/processed/Birmingham_fertility_rates.csv")
 
+#========================================================================================
+#turn the rates into a single year of age fertility rate by using the hadwiger function
+# a = total fertility
+# b = control the spread (higher values more narrow and centered)
+# c = control the centre 
+hadwiger = function(x, a, b, c) {
+  (a * b / c) * (c / x)^1.5 * exp(-b^2 * (c/x + x/c - 2))
+}
+
+
+bands = c("15-19","20-24","25-29","30-34","35-39","40-44","45-49")
+
+ages = seq(15, 49, 0.1)
+plot(ages, hadwiger(ages, a = 2, b = 10, c = 28), type = "l")
+
+age_lookup = tibble(single_age = 15:49) %>%
+  mutate(age_group_5yr = bands[findInterval(single_age, seq(15, 50, 5))])
+
+band_avg_from_params = function(a, b, c) {
+  age_lookup %>%
+    mutate(fx = hadwiger(single_age + 0.5, a, b, c)) %>%
+    group_by(age_group_5yr) %>%
+    summarise(fx_band = mean(fx), .groups = "drop")
+}
+
+
+
+
+
+
+#the observed fertility schedule
+
+obs_pak = smoothed_data %>%
+  filter(eth_code_mother == "PAK") %>%
+  transmute(age_group_5yr = as.character(age_group_5yr),
+            fx_obs = fx_EB_baseline)
+
+
+mids = c(17.5, 22.5, 27.5, 32.5, 37.5, 42.5, 47.5)
+start_a = 5 * sum(obs_pak$fx_obs)                          # TFR
+start_c = sum(mids * obs_pak$fx_obs) / sum(obs_pak$fx_obs) # rate-weighted mean age
+start_b = 3.5                                              #just a sensible initial value
+
+
+predict_band_rates = function(a, b, c, band) {
+  pred = band_avg_from_params(a, b, c)
+  pred$fx_band[match(band, pred$age_group_5yr)]
+}
+
+
+predict_band_rates(start_a, start_b, start_c, obs_pak$age_group_5yr)
+
+
+
+
+fit_pak = nls(
+  fx_obs ~ predict_band_rates(a, b, c, age_group_5yr),
+  data      = obs_pak,
+  start     = list(a = start_a, b = start_b, c = start_c),
+  algorithm = "port",
+  lower     = c(a = 0.01, b = 0.5, c = 18),
+  upper     = c(a = 10,   b = 10,  c = 42)
+)
+
+
+pred_pak = band_avg_from_params(
+  coef(fit_pak)["a"],
+  coef(fit_pak)["b"],
+  coef(fit_pak)["c"]
+)
+
+
+pak_single_age = tibble(single_age = 15:49) %>%
+  mutate(
+    age_mid = single_age + 0.5,
+    fx_single = hadwiger(
+      age_mid,
+      coef(fit_pak)["a"],
+      coef(fit_pak)["b"],
+      coef(fit_pak)["c"]
+    )
+  )
+
+pak_single_age
+
+ggplot(pak_single_age, aes(x = single_age, y = fx_single)) +
+  geom_line(linewidth = 1) +
+  geom_point(size = 1.5) +
+  labs(
+    title = "PAK fitted single-year fertility rates",
+    x = "Single year of age",
+    y = "Annual fertility rate"
+  ) +
+  theme_minimal()
+
+
+
+
+pak_corrected =pak_single_age %>%
+  left_join(age_lookup, by = "single_age") %>%
+  group_by(age_group_5yr) %>%
+  summarise(band_mean = mean(fx_single)) %>%
+  left_join(obs_pak, by = "age_group_5yr") %>%
+  mutate(diff = band_mean - fx_obs,
+         rel_diff = diff / fx_obs,
+         correction = fx_obs/band_mean) %>% 
+  select(age_group_5yr,correction) %>% 
+  left_join(age_lookup, by = "age_group_5yr") %>% 
+  left_join(pak_single_age, by = "single_age") %>% 
+  select(single_age, fx_single, age_group_5yr, correction) %>% 
+  mutate(corrected_fx_single = fx_single*correction) %>% 
+  left_join(obs_pak,by = "age_group_5yr")
+  
+
+
+pak_corrected_plot = ggplot(pak_corrected, aes(x = single_age))+
+  geom_line(aes(y = fx_obs, colour = "Grouped"),
+            linewidth = 1) +
+  geom_line(aes(y = corrected_fx_single, colour = "Single year"),
+            linewidth = 1) +
+  scale_color_manual(values = c("Single year" = "#D00070",
+                                "Grouped"       = "#3c3c3b"))+
+  scale_x_continuous(limits = c(15,49), breaks = seq(15,49,2))+
+  labs(
+    title = "Estimated singe year ASFRs from five year grouped ASFRs: \nPakistani women in Birmingham 2022-2025",
+    x = "Single year of age",
+    y = "Age-sepcific fertility rate"
+  ) +
+  labs(colour = "")+
+  theme_minimal(base_size =12)+
+  theme(legend.position = "bottom",
+        plot.title = element_text(hjust=0.5))
+
+
+#==================================================================================
+#turn the above process into a function for the other ethnic group
+#do a for loop as well
+
+eth_names = c(
+  WBI = "White British", WHO = "Other White", MIX = "Mixed",
+  IND = "Indian",        PAK = "Pakistani",   BAN = "Bangladeshi",
+  CHI = "Chinese",       OAS = "Other Asian", BLA = "Black African",
+  BLC = "Black Caribbean", OBL = "Other Black", OTH = "Other ethnic group"
+)
+
+hadwiger = function(x, a, b, c) {
+  (a * b / c) * (c / x)^1.5 * exp(-b^2 * (c/x + x/c - 2))
+}
+
+
+bands = c("15-19","20-24","25-29","30-34","35-39","40-44","45-49")
+
+ages = seq(15, 49, 0.1)
+plot(ages, hadwiger(ages, a = 2, b = 10, c = 28), type = "l")
+
+age_lookup = tibble(single_age = 15:49) %>%
+  mutate(age_group_5yr = bands[findInterval(single_age, seq(15, 50, 5))])
+
+band_avg_from_params = function(a, b, c) {
+  age_lookup %>%
+    mutate(fx = hadwiger(single_age + 0.5, a, b, c)) %>%
+    group_by(age_group_5yr) %>%
+    summarise(fx_band = mean(fx), .groups = "drop")
+}
+
+#---------------------------------------------------------------------
+hadwiger_nls = function(data,
+                        eth_code = "PAK"){
+  
+  hadwiger = function(x, a, b, c) {
+    (a * b / c) * (c / x)^1.5 * exp(-b^2 * (c/x + x/c - 2))
+  }
+  
+  
+  obs_eth= smoothed_data %>%
+    filter(eth_code_mother == eth_code) %>%
+    transmute(age_group_5yr = as.character(age_group_5yr),
+              fx_obs = fx_EB_baseline)
+    
+  mids = c(17.5, 22.5, 27.5, 32.5, 37.5, 42.5, 47.5)
+  start_a = 5 * sum(obs_eth$fx_obs)                          # TFR
+  start_c = sum(mids *obs_eth$fx_obs) / sum(obs_eth$fx_obs) # rate-weighted mean age
+  start_b = 3.5                                              #just a sensible initial value
+  
+  
+  predict_band_rates = function(a, b, c, band) {
+    pred = band_avg_from_params(a, b, c)
+    pred$fx_band[match(band, pred$age_group_5yr)]
+  }
+  
+  
+  
+  fit_eth = nls(
+    fx_obs ~ predict_band_rates(a, b, c, age_group_5yr),
+    data      = obs_eth,
+    start     = list(a = start_a, b = start_b, c = start_c),
+    algorithm = "port",
+    lower     = c(a = 0.01, b = 0.5, c = 18),
+    upper     = c(a = 10,   b = 10,  c = 42)
+  )
+  
+  pred_eth = band_avg_from_params(
+    coef(fit_eth)["a"],
+    coef(fit_eth)["b"],
+    coef(fit_eth)["c"]
+  )
+  
+  
+  eth_single_age = tibble(single_age = 15:49) %>%
+    mutate(
+      age_mid = single_age + 0.5,
+      fx_single = hadwiger(
+        age_mid,
+        coef(fit_eth)["a"],
+        coef(fit_eth)["b"],
+        coef(fit_eth)["c"]
+      ))
+      
+      
+      
+      
+      eth_corrected =eth_single_age %>%
+        left_join(age_lookup, by = "single_age") %>%
+        group_by(age_group_5yr) %>%
+        summarise(band_mean = mean(fx_single)) %>%
+        left_join(obs_eth, by = "age_group_5yr") %>%
+        mutate(diff = band_mean - fx_obs,
+               rel_diff = diff / fx_obs,
+               correction = fx_obs/band_mean) %>% 
+        select(age_group_5yr,correction) %>% 
+        left_join(age_lookup, by = "age_group_5yr") %>% 
+        left_join(eth_single_age, by = "single_age") %>% 
+        select(single_age, fx_single, age_group_5yr, correction) %>% 
+        mutate(corrected_fx_single = fx_single*correction) %>% 
+        left_join(obs_eth,by = "age_group_5yr")
+      
+      eth_corrected$eth_code = eth_code
+      
+      
+      eth_label = if (eth_code %in% names(eth_names)) eth_names[[eth_code]] else eth_code
+      
+      eth_corrected_plot = ggplot(eth_corrected, aes(x = single_age))+
+        geom_line(aes(y = fx_obs, colour = "Grouped"),
+                  linewidth = 1) +
+        geom_line(aes(y = corrected_fx_single, colour = "Single year"),
+                  linewidth = 1) +
+        scale_color_manual(values = c("Single year" = "#D00070",
+                                      "Grouped"       = "#3c3c3b"))+
+        scale_x_continuous(limits = c(15,49), breaks = seq(15,49,2))+
+        labs(
+          title = glue::glue("Estimated single-year ASFRs from five-year grouped ASFRs:\n{eth_label} women in Birmingham, 2022–2025"),
+          x = "Single year of age",
+          y = "Age-sepcific fertility rate"
+        ) +
+        labs(colour = "")+
+        theme_minimal(base_size =12)+
+        theme(legend.position = "bottom",
+              plot.title = element_text(hjust=0.5))   
+  
+    
+    
+    return(list(data = eth_corrected, plot = eth_corrected_plot, params = coef(fit_eth)))
+    
+    
+}
+
+#---------------------------------------------------------------------
+#loop over all ethnicity 
+  
+ all_single_year = list()
+  
+for (i in 1:length(eth_names)){
+  eth_code = unique(smoothed_data$eth_code_mother)[i]
+  all_single_year[[i]] = hadwiger_nls(data = smoothed_data, eth_code =eth_code)
+  
+}
+
+
+tables = map(all_single_year, "data")           # list of 12 tibbles
+stacked = data.table::rbindlist(tables, idcol = "eth_code_mother") %>% 
+  select(-eth_code_mother) %>% 
+  select(eth_code, everything())
+
+#--------------------------------------------------------------------
+# Projecting the single-year ASFRs using ONS annual scaling
+# Baseline is matched to MSDS: average ONS ASFR over 2022–2025
+
+ons_scaling_annual = ONS_full_2021_2061 %>%
+  mutate(age_group_5yr = case_when(
+    age_group_5yr == "age_15_19" ~ "15-19",
+    age_group_5yr == "age20_24"  ~ "20-24",
+    age_group_5yr == "age25_29"  ~ "25-29",
+    age_group_5yr == "age30_34"  ~ "30-34",
+    age_group_5yr == "age35_39"  ~ "35-39",
+    age_group_5yr == "age40_44"  ~ "40-44",
+    age_group_5yr == "age_45_49" ~ "45-49",
+    TRUE ~ age_group_5yr
+  )) %>%
+  mutate(Year = as.integer(Year)) %>%
+  group_by(age_group_5yr) %>%
+  mutate(
+    ons_baseline_2022_2025 = mean(ons_asfr[Year %in% 2022:2025], na.rm = TRUE),
+    ons_scaling_factor = ons_asfr / ons_baseline_2022_2025,
+    ons_scaling_factor = if_else(Year == 2021, 1, ons_scaling_factor)
+  ) %>%
+  ungroup() %>%
+  filter(Year >= 2021, Year <= 2061) %>%
+  select(Year, age_group_5yr, ons_asfr, ons_baseline_2022_2025, ons_scaling_factor)
+
+
+
+fertility_projected_annual = stacked %>%
+  left_join(
+    ons_scaling_annual,
+    by = "age_group_5yr",
+    relationship = "many-to-many"
+  ) %>%
+  mutate(fx = corrected_fx_single * ons_scaling_factor) %>%
+  arrange(eth_code, single_age, Year) %>%
+  select(Year, eth_code, age_group_5yr, single_age, fx)
+
+
+# fertility_projected_annual %>%
+#   filter(Year == 2021) %>%
+#   group_by(eth_code) %>%
+#   summarise(tfr = sum(fx)) %>%
+#   arrange(tfr)
+# 
+# fertility_projected_annual %>%
+#   filter(Year == 2022) %>%
+#   group_by(eth_code) %>%
+#   summarise(tfr = sum(fx)) %>%
+#   arrange(tfr)
+
 
