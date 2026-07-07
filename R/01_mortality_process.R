@@ -19,7 +19,7 @@ death_data = read_delim("data/mortality/death_data.txt",
                          trim_ws = TRUE)
 
 
-age_levels = c("0-4","5-9","10-14","15-19","20-24","25-29",
+age_levels = c("0","1-4","5-9","10-14","15-19","20-24","25-29",
                 "30-34","35-39","40-44","45-49","50-54","55-59",
                 "60-64","65-69","70-74","75-79","80-84","85-89","90+")
 
@@ -35,7 +35,8 @@ Bham_only_death_data = death_data %>%
                   DATE_OF_DEATH = as.Date(paste0(DATE_OF_DEATH, "-01")),
                  DEC_SEX = ifelse(DEC_SEX == 1, "Male", "Female"),
                  age_group_5yr = case_when(
-                   DEC_AGEC >= 0  & DEC_AGEC <= 4  ~ "0-4",
+                   DEC_AGEC == 0                    ~ "0",
+                   DEC_AGEC >= 1  & DEC_AGEC <= 4  ~ "1-4",
                    DEC_AGEC >= 5  & DEC_AGEC <= 9  ~ "5-9",
                    DEC_AGEC >= 10 & DEC_AGEC <= 14 ~ "10-14",
                    DEC_AGEC >= 15 & DEC_AGEC <= 19 ~ "15-19",
@@ -90,8 +91,7 @@ Bham_only_death_data = death_data %>%
 
 death_counts = Bham_only_death_data %>% 
   mutate(year = year(DATE_OF_DEATH)) %>%
-  filter(year >= 2017, year <= 2024) %>%
-  filter(! year %in% c(2020,2021)) %>% 
+  filter(year %in% c(2022,2023,2024)) %>%
   group_by(eth_code, DEC_SEX, age_group_5yr, year) %>%
   summarise(deaths = n(), .groups = "drop")
 
@@ -109,7 +109,8 @@ Bham_only_death_data_na_eth = death_data %>%
           DATE_OF_DEATH = as.Date(paste0(DATE_OF_DEATH, "-01")),
           DEC_SEX = ifelse(DEC_SEX == 1, "Male", "Female"),
           age_group_5yr = case_when(
-            DEC_AGEC >= 0  & DEC_AGEC <= 4  ~ "0-4",
+            DEC_AGEC == 0                    ~ "0",
+            DEC_AGEC >= 1  & DEC_AGEC <= 4  ~ "1-4",
             DEC_AGEC >= 5  & DEC_AGEC <= 9  ~ "5-9",
             DEC_AGEC >= 10 & DEC_AGEC <= 14 ~ "10-14",
             DEC_AGEC >= 15 & DEC_AGEC <= 19 ~ "15-19",
@@ -230,8 +231,7 @@ bham_ward_ethnic_composition = ward_ethnic_composition %>%
 #----------------------------------------------
 death_counts_redis = Bham_only_death_data_na_eth %>% 
   mutate(year = year(DATE_OF_DEATH)) %>%
-  filter(year >= 2017, year <= 2024) %>%
-  filter(! year %in% c(2020,2021)) %>% 
+  filter(year %in% c(2022,2023,2024)) %>%
   group_by(WARD_OF_RESIDENCE_CODE, DEC_SEX, age_group_5yr, year) %>%
   summarise(deaths = n(), .groups = "drop")
 
@@ -267,7 +267,7 @@ death_counts_final = death_counts_final %>%
     eth_code      = levels(Bham_only_death_data$eth_code),
     DEC_SEX       = c("Male", "Female"),
     age_group_5yr = age_levels,
-    year          = c(2017,2018,2019,2022,2023,2024),
+    year          = c(2022,2023,2024),
     fill          = list(deaths_observed = 0, deaths_redistributed = 0, deaths_total = 0)
   ) %>% 
   mutate(age_group_5yr = factor(age_group_5yr, levels = age_levels))
@@ -328,7 +328,7 @@ bham_eth_pop = eth_pop %>%
             Observation = Observation) %>% 
   filter(Ethnic20group != "Does not apply") %>% 
   mutate( age_group_5yr = case_when(
-    Age >= 0  & Age <= 4  ~ "0-4",
+    Age >= 1  & Age <= 4  ~ "1-4",
     Age >= 5  & Age <= 9  ~ "5-9",
     Age >= 10 & Age <= 14 ~ "10-14",
     Age >= 15 & Age <= 19 ~ "15-19",
@@ -356,6 +356,63 @@ bham_eth_pop = eth_pop %>%
   summarise(Observation = sum(Observation),
             .groups = "drop")
 
+#=======================================================================
+#special treatment for age 0
+
+
+MSDS_data = read_delim("data/fertiliy/Fertility_data.txt", 
+                       delim = "\t", escape_double = FALSE, 
+                       trim_ws = TRUE)
+
+
+births_eth_sex_avgpop = MSDS_data %>% 
+  filter(YearOfBirthBaby %in% c(2022,2023,2024)) %>% 
+  filter(ElectoralWardMother %in% ward_map$Ward_Code)%>%
+  mutate(eth_code_baby = case_when(
+    EthnicCategoryBaby %in% c("A", "B")             ~ "WBI",
+    EthnicCategoryBaby == "C"                        ~ "WHO",
+    EthnicCategoryBaby %in% c("D", "E", "F", "G")  ~ "MIX",
+    EthnicCategoryBaby == "H"                        ~ "IND",
+    EthnicCategoryBaby == "J"                        ~ "PAK",
+    EthnicCategoryBaby == "K"                        ~ "BAN",
+    EthnicCategoryBaby == "R"                        ~ "CHI",
+    EthnicCategoryBaby == "L"                        ~ "OAS",
+    EthnicCategoryBaby == "N"                        ~ "BLA",
+    EthnicCategoryBaby == "M"                        ~ "BLC",
+    EthnicCategoryBaby == "P"                        ~ "OBL",
+    EthnicCategoryBaby == "S"                        ~ "OTH",
+    EthnicCategoryBaby %in% c("Z", "99")            ~ NA_character_
+  ),
+  Sex = case_when(
+    PersonPhenSex == "1" ~ "Male",
+    PersonPhenSex == "2" ~ "Female",
+    TRUE                 ~ NA_character_
+  )) %>% 
+  filter(!is.na(eth_code_baby)) %>% 
+  group_by(YearOfBirthBaby,eth_code_baby,Sex)    %>% 
+  summarise(births = n(), .groups = "drop") %>% 
+  group_by(eth_code_baby,Sex ) %>% 
+  summarise(
+    births_avg = mean(births),
+    .groups = "drop"
+  )%>%
+  filter(!is.na(Sex)) %>%
+  transmute(
+    eth_code = eth_code_baby,
+    DEC_SEX = Sex,
+    age_group_5yr=0,
+    Observation = births_avg
+  )
+
+bham_eth_pop = rbind(births_eth_sex_avgpop,
+                     bham_eth_pop) %>% 
+  mutate(
+    age_group_5yr = as.character(age_group_5yr),
+    age_group_5yr = factor(age_group_5yr, levels = age_levels)
+  )
+
+
+
 # write.csv(bham_eth_pop, "data/processed/bham_eth_pop.csv")
 
 ##########################################################################
@@ -364,29 +421,62 @@ bham_eth_pop = eth_pop %>%
 #we need to use empirical bayes shrinkage
 
 #calculate raw mortality rates
-prior_deaths = death_counts_final %>% 
+eth_mort_raw = death_counts_final %>% 
   group_by(eth_code, DEC_SEX, age_group_5yr) %>% 
-  summarise(deaths_avg = mean(deaths_total), .groups = "drop") %>% 
-  left_join(bham_eth_pop, by = c("eth_code", "DEC_SEX", "age_group_5yr")) %>% 
-  mutate(raw_rate = deaths_avg / Observation) %>% 
-  group_by(DEC_SEX, age_group_5yr) %>% 
   summarise(
-    # Calculate the global mean of the rates
-    mu = mean(raw_rate, na.rm = TRUE),
-    v  = pmax(var(raw_rate, na.rm = TRUE), 1e-10),
-    .groups = "drop")
-  
-#Calculate α and β
-prior_deaths = prior_deaths %>% 
-  mutate(alpha = mu^2 / v,
-         beta  = mu / v)
+    deaths_avg = mean(deaths_total, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  left_join(
+    bham_eth_pop,
+    by = c("eth_code", "DEC_SEX", "age_group_5yr")
+  ) %>% 
+  mutate(
+    raw_rate = if_else(
+      Observation > 0,
+      deaths_avg / Observation,
+      NA_real_
+    )
+  )
+
+prior_deaths_weighted = eth_mort_raw %>%
+  filter(
+    is.finite(raw_rate),
+    is.finite(Observation),
+    Observation > 0
+  ) %>% 
+  group_by(DEC_SEX, age_group_5yr) %>%
+  mutate(
+    weight = Observation / sum(Observation, na.rm = TRUE),
+    
+    # population-weighted Birmingham sex-age rate
+    mu = sum(weight * raw_rate, na.rm = TRUE)
+  ) %>%
+  summarise(
+    total_deaths = sum(deaths_avg, na.rm = TRUE),
+    total_exposure = sum(Observation, na.rm = TRUE),
+    
+    mu = first(mu),
+    
+    # population-weighted variance of ethnic raw rates
+    v = sum(weight * (raw_rate - mu)^2, na.rm = TRUE),
+    
+    .groups = "drop"
+  ) %>%
+  mutate(
+    v = pmax(v, 1e-10),
+    #Calculate α and β
+    alpha = mu^2 / v,
+    beta  = mu / v
+  )
+
 
 #apply EB shrinkage
 smoothed_data = death_counts_final %>% 
   group_by(eth_code, DEC_SEX, age_group_5yr) %>% 
   summarise(deaths_avg = mean(deaths_total), .groups = "drop") %>% 
   left_join(bham_eth_pop, by = c("eth_code", "DEC_SEX", "age_group_5yr")) %>% 
-  left_join(prior_deaths, by = c("DEC_SEX", "age_group_5yr")) %>% 
+  left_join(prior_deaths_weighted, by = c("DEC_SEX", "age_group_5yr")) %>% 
   mutate(mx_EB =(deaths_avg + alpha) /(Observation  + beta))
 
 
@@ -398,64 +488,103 @@ smoothed_data = death_counts_final %>%
 #===============================================================================
 #Convert mx to qx  (probability of dying in the interval)
 
+
+
 life_table = smoothed_data %>% 
-  rename(mx = mx_EB) %>% 
-  mutate(n =5,
+  mutate(# interval width
+    n = case_when(
+      age_group_5yr == "0"   ~ 1,
+      age_group_5yr == "1-4" ~ 4,
+      age_group_5yr == "90+" ~ NA_real_,
+      TRUE                   ~ 5
+    ),
          #ax is the average proportion of the age interval lived by those who die within that interval
-         ax = case_when(age_group_5yr == "0-4" ~ 0.07,
-                        age_group_5yr == "90+" ~ 1/mx,
-                        TRUE ~ 2.5),
+         ax = case_when( age_group_5yr == "0"   ~ 0.07,
+                         age_group_5yr == "1-4" ~ 2,
+                         age_group_5yr == "90+" ~ NA_real_,
+                         TRUE                   ~ n / 2),
          #probability of dying in interval
          qx = case_when(
-           age_group_5yr == "90+" ~ 1,   # everyone alive at 90+ will eventually die within the open-ended 90+ interval.
-           TRUE                   ~ (n * mx) / (1 + (n - ax) * mx)
+           age_group_5yr == "0"   ~ mx_EB,
+           age_group_5yr == "90+" ~ 1,
+           TRUE                   ~ (n * mx_EB) / (1 + (n - ax) * mx_EB)
          ),
          
          # just for safety because probability cant exceed 1 
-         qx = pmin(qx, 1)
-         ) %>% 
+         qx = pmin(qx, 1),
+    # create true mx column
+    mx = case_when(
+      age_group_5yr == "0" ~ qx / (1 - (1 - ax) * qx),
+      TRUE                 ~ mx_EB
+         ),
+    px = 1 - qx,
+    age_group_5yr = factor(age_group_5yr, levels = age_levels)) %>% 
   arrange(eth_code, DEC_SEX, age_group_5yr) %>% 
   group_by(eth_code, DEC_SEX) %>% 
   mutate(
-    # lx: survivors at start of interval, radix = 100,000
-    lx  = 100000 * cumprod(lag(1 - qx, default = 1)),
-    # dx: deaths in interval
-    dx  = lx * qx,
-    # Lx: person-years lived in interval
-    Lx  = case_when(
-      age_group_5yr == "90+" ~ lx / mx,   # ONS open interval
-      TRUE                   ~ n * (lx - dx) + ax * dx
-    )
-  ) %>% 
-  mutate(
-    # Tx: person-years lived above age x
-    Tx  = rev(cumsum(rev(Lx))),
-    # ex: life expectancy at age x
-    ex  = Tx / lx
-  ) %>% 
-  ungroup()
-
-
-survival_ratios  = life_table %>%
-  group_by(eth_code, DEC_SEX) %>%
-  mutate(
-    Lx_next = lead(Lx),
-    Tx_90 = Tx[age_group_5yr == "90+"],
-    Tx_85 = Tx[age_group_5yr == "85-89"],
+    lx = 100000 * cumprod(lag(px, default = 1)),
+    dx = lx * qx,
+    lx_next = lead(lx),
     
-    Sx = case_when(
-      age_group_5yr == "85-89" ~ Tx_90 / Tx_85,
-      age_group_5yr == "90+"   ~ Tx_90 / Tx_85,
-      TRUE ~ Lx_next / Lx
+    Lx = case_when(
+      age_group_5yr == "90+" ~ lx / mx,
+      TRUE                   ~ n * lx_next + ax * dx
     ),
     
-    Sx = pmin(Sx, 1)
-  ) %>%
+    Tx = rev(cumsum(rev(Lx))),
+    ex = Tx / lx
+  ) %>% 
   ungroup()
 
 
+# survival_ratios  = life_table %>%
+#   group_by(eth_code, DEC_SEX) %>%
+#   arrange(age_group_5yr, .by_group = TRUE) %>%
+#   mutate(
+#     Lx_next = lead(Lx),
+#     Tx_90 = Tx[age_group_5yr == "90+"],
+#     Tx_85 = Tx[age_group_5yr == "85-89"],
+#     
+#     Sx = case_when(
+#       age_group_5yr == "85-89" ~ Tx_90 / Tx_85,
+#       age_group_5yr == "90+"   ~ Tx_90 / Tx_85,
+#       TRUE                     ~ Lx_next / Lx
+#     ),
+#     
+#     Sx = pmin(Sx, 1)
+#   ) %>%
+#   ungroup()
 
+
+write.csv(life_table, "data/processed/life_table.csv")
 write.csv(survival_ratios, "data/processed/Birmingham_survival_ratios.csv")
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

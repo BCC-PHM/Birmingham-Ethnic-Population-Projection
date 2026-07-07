@@ -779,7 +779,9 @@ fertility_projected_annual %>%
   filter(Year == 2021) %>%
   group_by(eth_code) %>%
   summarise(tfr = sum(fx)) %>%
-  arrange(tfr)
+  arrange(tfr) %>% 
+  pull(tfr) %>% 
+  mean()
 # 
 # fertility_projected_annual %>%
 #   filter(Year == 2022) %>%
