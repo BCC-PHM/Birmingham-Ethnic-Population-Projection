@@ -275,8 +275,8 @@ internal_n_international_in_bham = Rees_internal_in_prop %>%
     by = "ethnic_group"
   ) %>% 
   mutate(
-    IN_B   = round(IN_B * In_prop/100),
-    INt_B = round(INt_B * Int_in_prop/100)
+    IN_B   = IN_B * In_prop/100,
+    INt_B = INt_B * Int_in_prop/100
   ) %>% 
   select(eth_code, ethnic_group,  In_prop, Int_in_prop, IN_B, INt_B) %>%
   mutate(
@@ -293,7 +293,7 @@ internal_out_bham = Rees_internal_out_prop %>%
     by = "ethnic_group"
   ) %>% 
   mutate(
-    OUT_B   = round(OUT_B * prop/100)
+    OUT_B   = OUT_B * prop/100
   ) %>% 
   select(eth_code, ethnic_group, prop, OUT_B) %>%
   mutate(
@@ -310,7 +310,7 @@ international_in_RUK = Rees_international_in_RUK_prop %>%
     by = "ethnic_group"
   ) %>% 
   mutate(
-    INt_RUK   = round(INt_RUK* prop/100)
+    INt_RUK   = INt_RUK* prop/100
   ) %>% 
   select(eth_code, ethnic_group, prop, INt_RUK) %>%
   mutate(
