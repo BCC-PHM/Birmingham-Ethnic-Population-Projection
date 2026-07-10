@@ -145,42 +145,133 @@ broad_group_map = tibble(
 )
 
 #---------------------------------------------------
-#the propensity of small subgroup in each broad group
+#propensity borrowing from Rees instead 
+#using the ethnic population shares just feel too wrong
 
-propensity = birmingham_base_pop_12grp %>%
-  left_join(broad_group_map, by = "eth_code") %>%
-  group_by(ethnic_group) %>%
-  mutate(
-    broad_pop  = sum(pop_2021),
-    prop       = pop_2021 / broad_pop      # share within broad group
-  ) %>%
+#this is for birmingham internal in 
+Rees_internal_in_shares = read_csv("data/migration/InMig_2021_2022_LEEDS2.csv")
+
+#this is for birmingham internal out
+Rees_internal_out_shares = read_csv("data/migration/OutMig_2012_2013_LEEDS1.csv")
+
+#this is for RUK immigrants
+Immig_2011_2012_LEEDS1 = read_csv("data/migration/Immig_2011_2012_LEEDS1.csv")
+
+broad_group_map = tibble(
+  eth_code    = c("WBI","WHO","MIX",
+                  "IND","PAK","BAN","CHI","OAS",
+                  "BLA","BLC","OBL",
+                  "OTH"),
+  ethnic_group = c(
+    "White","White","Mixed or Multiple ethnic groups",
+    "Asian, Asian British or Asian Welsh",
+    "Asian, Asian British or Asian Welsh",
+    "Asian, Asian British or Asian Welsh",
+    "Asian, Asian British or Asian Welsh",
+    "Asian, Asian British or Asian Welsh",
+    "Black, Black British, Black Welsh, Caribbean or African",
+    "Black, Black British, Black Welsh, Caribbean or African",
+    "Black, Black British, Black Welsh, Caribbean or African",
+    "Other ethnic group"
+  )
+)
+#----------------------------------------
+#birmingham in-ethnic-shares
+Rees_internal_in_prop = Rees_internal_in_shares %>% 
+  filter(LAD.name == "Birmingham") %>% 
+  select(-...1) %>% 
+  pivot_longer(cols = c(-LAD.name,-LAD.code,-ETH.group),
+               names_to = "SexAge",
+               values_to = "count") %>% 
+  mutate(Sex = ifelse(str_detect(SexAge, "^M"),
+                      "Male",
+                      "Female"),
+         Age = str_extract(SexAge, "\\.\\d+$"),
+         Age = as.integer(str_replace(Age, "\\.", ""))) %>% 
+  drop_na() %>% 
+  group_by(ETH.group) %>% 
+  summarise(count = sum(count),
+            .groups = "drop") %>% 
+  rename(eth_code = ETH.group) %>% 
+  left_join(broad_group_map, by = "eth_code") %>% 
+  group_by(ethnic_group) %>% 
+  mutate(prop = count/sum(count)*100) %>% 
+  ungroup()
+  
+#----------------------------------------
+#birmingham out-ethnic-share
+Rees_internal_out_prop = Rees_internal_out_shares %>% 
+  filter(LAD.name == "Birmingham") %>% 
+  select(-...1) %>% 
+  pivot_longer(cols = c(-LAD.name,-LAD.code,-ETH.group),
+               names_to = "SexAge",
+               values_to = "count") %>% 
+  mutate(Sex = ifelse(str_detect(SexAge, "^M"),
+                      "Male",
+                      "Female"),
+         Age = str_extract(SexAge, "\\.\\d+$"),
+         Age = as.integer(str_replace(Age, "\\.", ""))) %>% 
+  drop_na() %>%
+  group_by(ETH.group) %>% 
+  summarise(count = sum(count),
+            .groups = "drop") %>% 
+  rename(eth_code = ETH.group) %>% 
+  left_join(broad_group_map, by = "eth_code") %>% 
+  group_by(ethnic_group) %>% 
+  mutate(prop = count/sum(count)*100) %>% 
   ungroup()
 
-propensity
+#----------------------------------------
+#RUK immigration ethnic share
+Rees_international_in_RUK_prop = Immig_2011_2012_LEEDS1 %>% 
+  filter(LAD.name != "Birmingham") %>% 
+  select(-...1) %>% 
+  pivot_longer(cols = c(-LAD.name,-LAD.code,-ETH.group),
+               names_to = "SexAge",
+               values_to = "count") %>% 
+  mutate(Sex = ifelse(str_detect(SexAge, "^M"),
+                      "Male",
+                      "Female"),
+         Age = str_extract(SexAge, "\\.\\d+$"),
+         Age = as.integer(str_replace(Age, "\\.", ""))) %>% 
+  drop_na() %>% 
+  group_by(ETH.group) %>% 
+  summarise(count = sum(count),
+            .groups = "drop") %>% 
+  rename(eth_code = ETH.group) %>% 
+  left_join(broad_group_map, by = "eth_code") %>% 
+  group_by(ethnic_group) %>% 
+  mutate(prop = count/sum(count)*100) %>% 
+  ungroup()
 
-#---------------------------------------------------
-#multiply the preopensity 
+#----------------------------------------
+#Birmingham immigration ethnic share
 
-internal_net_12grp = propensity %>%
-  left_join(
-    internal_net %>% select(ethnic_group, out, in_, net),
-    by = "ethnic_group"
-  ) %>%
-  mutate(
-    out_12  = round(out * prop),
-    in_12   = round(in_ * prop),
-    net_12  = in_12 - out_12              # recompute net from rounded components
-  ) %>%
-  select(eth_code, ethnic_group, pop_2021, prop, out_12, in_12, net_12) %>%
-  mutate(
-    eth_code = factor(eth_code,
-                      levels = c("WBI","WHO","MIX","IND","PAK","BAN",
-                                 "CHI","OAS","BLA","BLC","OBL","OTH"))
-  ) %>%
-  arrange(eth_code)
+Rees_international_in_bham_prop = Immig_2011_2012_LEEDS1 %>% 
+  filter(LAD.name == "Birmingham") %>% 
+  select(-...1) %>% 
+  pivot_longer(cols = c(-LAD.name,-LAD.code,-ETH.group),
+               names_to = "SexAge",
+               values_to = "count") %>% 
+  mutate(Sex = ifelse(str_detect(SexAge, "^M"),
+                      "Male",
+                      "Female"),
+         Age = str_extract(SexAge, "\\.\\d+$"),
+         Age = as.integer(str_replace(Age, "\\.", ""))) %>% 
+  drop_na() %>% 
+  group_by(ETH.group) %>% 
+  summarise(count = sum(count),
+            .groups = "drop") %>% 
+  rename(eth_code = ETH.group) %>% 
+  left_join(broad_group_map, by = "eth_code") %>% 
+  group_by(ethnic_group) %>% 
+  mutate(prop = count/sum(count)*100) %>% 
+  ungroup()
 
-write_csv(internal_net_12grp, "data/processed/internal_net_12grp_bham.csv")
 
-#---------------------------------------------------
+
+
+
+
 
 
