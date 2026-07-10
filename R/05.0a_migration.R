@@ -478,10 +478,10 @@ age_sex_bham_in = bham_migration_agesex %>%
 #These ratios were then multiplied by the mean probabilities generated.
 #p.67 of the Leeds paper
 
-birmingham_age_sex_ethnic_pop = read_csv("data/RM032_LA_ethnic_pop_age_sex_2021.csv")
+raw_pop = read_csv("data/RM032_LA_ethnic_pop_age_sex_2021.csv")
 
-#the population denominator for age-sex profile 
-birmingham_age_sex_ethnic_pop = birmingham_age_sex_ethnic_pop %>% 
+#the population denominator for age-sex profile for Birmingham
+birmingham_age_sex_ethnic_pop = raw_pop %>% 
   filter(`Upper tier local authorities` == "Birmingham") %>% 
   group_by(sex = `Sex (2 categories)`,
            Age = `Age (101 categories) Code`) %>%
@@ -490,43 +490,135 @@ birmingham_age_sex_ethnic_pop = birmingham_age_sex_ethnic_pop %>%
          Age = as.integer(Age))
 
 
+#the population denominator for age-sex profile for RUK
+RUK_age_sex_ethnic_pop = raw_pop %>% 
+  filter(`Upper tier local authorities` != "Birmingham") %>% 
+  group_by(sex = `Sex (2 categories)`,
+           Age = `Age (101 categories) Code`) %>%
+  summarise(pop = sum(Observation), .groups = "drop") %>%
+  mutate(sex = if_else(sex == "Female", "Female", "Male"), 
+         Age = as.integer(Age))
+
+
+
 bham_schedule = age_sex_bham_out %>%
   left_join(age_sex_bham_in, by = c("sex", "Age")) %>%
   mutate(sex = ifelse(sex == "F", "Female", "Male")) %>% 
   left_join(birmingham_age_sex_ethnic_pop, by = c("sex", "Age")) %>% 
-  group_by(sex) %>%
+  left_join(RUK_age_sex_ethnic_pop %>% rename(pop_ruk = pop),
+            by = c("sex","Age")) %>%  
   mutate(
-    out_weight = (out_count/pop) / mean(out_count/pop),
-    in_weight  = (in_count/pop) / mean(in_count/pop)
+    out_rate_raw = out_count / pop,        # Birmingham origin
+    in_rate_raw  = in_count  / pop_ruk     # RUK origin  ← was pop
   ) %>%
-  ungroup() %>% 
+  mutate(
+    out_mean = sum(out_count) / sum(pop),
+    in_mean  = sum(in_count)  / sum(pop_ruk),   # ← was pop
+    out_weight = out_rate_raw / out_mean,
+    in_weight  = in_rate_raw  / in_mean
+  ) %>%
   group_by(sex) %>%
   mutate(
-    ceiling90 = mean(out_weight[Age %in% 80:90]),
-    out_weight = if_else(Age > 90, ceiling90, out_weight),
-    in_weight = ifelse(Age > 90,mean(in_weight[Age %in% 80:90]), in_weight)
-  ) %>% 
+    out_weight = if_else(Age > 90, mean(out_weight[Age %in% 80:90]), out_weight),
+    in_weight  = if_else(Age > 90, mean(in_weight[Age %in% 80:90]),  in_weight)
+  ) %>%
   ungroup()
 
+#---------------------------------------------------------
+# pure arrival-share allocation (kept alongside Option A)
+bham_in_schedule = age_sex_bham_in %>%
+  mutate(sex = ifelse(sex == "F", "Female", "Male"),
+         arrival_share = in_count / sum(in_count))
+stopifnot(abs(sum(bham_in_schedule$arrival_share) - 1) < 1e-10)
 
-# Apply to ethnic rates
-migration_rates_ethagesex = migration_rates_allages %>% 
-  cross_join(bham_schedule %>% select(sex, Age, out_weight, in_weight)) %>% 
-  mutate(
-    out_rate_as = out_rate * out_weight,
-    in_rate_as  = in_rate  * in_weight
-  ) 
+internal_in_counts_ethagesex = internal_n_international_in_bham %>%
+  select(eth_code, IN_B) %>%
+  cross_join(bham_in_schedule %>% select(sex, Age, arrival_share)) %>%
+  mutate(IN_B_as = IN_B * arrival_share) %>%
+  select(eth_code, sex, Age, IN_B, arrival_share, IN_B_as)
 
-ggplot(bham_schedule, aes(Age, out_weight, colour = sex)) +
-  geom_line() + geom_vline(xintercept = c(19,23), linetype = 2)
+# allocation preserves each group's total inflow
+chk = internal_in_counts_ethagesex %>%
+  group_by(eth_code) %>%
+  summarise(d = sum(IN_B_as) - first(IN_B), .groups = "drop")
+stopifnot(all(abs(chk$d) < 1e-8))
 
-ggplot(migration_rates_ethagesex , aes(Age, out_rate_as, colour = sex))+
-  geom_line() +
-  facet_wrap(~eth_code)
 
-  
-ggplot(migration_rates_ethagesex , aes(Age, in_rate_as, colour = sex))+
-  geom_line() +
-  facet_wrap(~eth_code)
+write_csv(internal_in_counts_ethagesex,
+          "data/processed/Birmingham_internal_in_counts_single_year.csv")
+#---------------------------------------------------------
+# ============================================================
+# Out-migration probability profile (Birmingham origin)
+# ============================================================
+internal_out_rates_ethagesex = migration_rates_allages %>%
+  select(eth_code, out_rate) %>%
+  cross_join(bham_schedule %>% select(sex, Age, out_weight)) %>%
+  mutate(out_rate_as = out_rate * out_weight) %>%
+  select(eth_code, sex, Age, out_rate_as)
+
+# ============================================================
+# In-migration probability profile (RUK origin) — Rees rate
+# in_weight already RUK-denominated, so this IS the Rees input
+# ============================================================
+internal_in_rates_ethagesex = migration_rates_allages %>%
+  select(eth_code, in_rate) %>%
+  cross_join(bham_schedule %>% select(sex, Age, in_weight)) %>%
+  mutate(in_rate_as = in_rate * in_weight) %>%
+  select(eth_code, sex, Age, in_rate_as)
+
+# ============================================================
+# Combine — final projection inputs (both are rates, Rees-style)
+# ============================================================
+migration_ethagesex = internal_out_rates_ethagesex %>%
+  full_join(internal_in_rates_ethagesex, by = c("eth_code","sex","Age")) %>%
+  # keep Option B counts alongside, for the engine-time ethnic-denominator refinement
+  left_join(internal_in_counts_ethagesex %>% select(eth_code, sex, Age, IN_B_as),
+            by = c("eth_code","sex","Age")) %>%
+  arrange(eth_code, sex, Age)
+
+
+write_csv(migration_ethagesex, "data/processed/Birmingham_internal_migration_rates_single_year.csv")
+
+# ============================================================
+
+# ggplot(bham_schedule, aes(Age, out_weight, colour = sex)) +
+#   geom_line() + geom_vline(xintercept = c(19,23), linetype = 2)
+# 
+# ggplot(migration_rates_ethagesex , aes(Age, out_rate_as, colour = sex))+
+#   geom_line() +
+#   facet_wrap(~eth_code)
+# 
+#   
+# ggplot(migration_rates_ethagesex , aes(Age, in_rate_as, colour = sex))+
+#   geom_line() +
+#   facet_wrap(~eth_code)
+# 
+# 
+# eth_order = c("WBI", "WHO", "MIX",           # White + Mixed
+#               "IND", "PAK", "BAN", "CHI", "OAS",  # Asian
+#               "BLA", "BLC", "OBL",           # Black
+#               "OTH")                          # Other
+# 
+# migration_rates_allages %>% 
+#   pivot_longer(cols = -eth_code,
+#                values_to = "Rate",
+#                names_to = "Type_of_rate") %>% 
+#   mutate(eth_code = factor(eth_code, levels = rev(eth_order))) %>% 
+#   ggplot(aes(x=eth_code, y = Rate, fill= Type_of_rate))+
+#   geom_col()+
+#   coord_flip()+
+#   theme_minimal()+
+#   facet_wrap(~Type_of_rate,scales = "free")+
+#   theme(legend.position = "none")
+
+
+
+
+
+
+
+
+
+
 
 
