@@ -134,24 +134,24 @@ share_table = bham_international_immigration %>%
 
 # ============================================================
 #load MYE3 data of 2021 and 2022
-MYE3_2021 = read_excel("data/migration/mye22tablesew2021geogs.xlsx", 
-                       sheet = "MYE3", skip = 7)
 
-MYE3_2022 = read_excel("data/migration/mye22tablesew2023geogs.xlsx", 
-                       sheet = "MYE3", skip = 7)
+MYE11_23 =  read_excel("data/migration/myebtablesenglandwales20112023.xlsx", 
+                       sheet = "MYEB3", skip = 1)
 
-MYE3_2021 = MYE3_2021 %>% 
-  filter(Name == "Birmingham") %>% 
-  select(`International Migration Inflow`)
+
+MYE11_23 = MYE11_23%>% 
+  filter(laname23 == "Birmingham") %>% 
+  select(international_in_2021, international_in_2022)
 
 #pull the count
-mye_inflow_2021_22 = MYE3_2021 %>% pull(`International Migration Inflow`)
+mye_inflow_2021 = MYE11_23 %>% pull(international_in_2021)
+mye_inflow_2022 = MYE11_23 %>% pull(international_in_2022)
 
 backfill_2021_22 = share_table %>%
   cross_join(tibble(Year = 2021:2022)) %>%
   mutate(
     Count             = NA_real_,               # no SNPP count for these years
-    immigration_count = share * mye_inflow_2021_22
+    immigration_count = ifelse(Year == 2021, share * mye_inflow_2021, share*mye_inflow_2022)
   ) %>%
   select(Year, eth_code, sex, Age, ethnic_share, Count, immigration_count) %>% 
   arrange(
