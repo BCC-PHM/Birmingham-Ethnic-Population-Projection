@@ -121,33 +121,6 @@ bham_international_immigration = ons_bham_immigration_long_0_100 %>%
 
 
 
-
-
-
-
-bham_international_immigration %>%
-  group_by(Year) %>%
-  summarise(
-    immigration = sum(immigration_count),
-    .groups = "drop"
-  ) %>%
-  ggplot(
-    aes(
-      x = Year,
-      y = immigration
-    )
-  ) +
-  geom_line() +
-  geom_point() +
-  scale_y_continuous(limits = c(0,40000))+
-  labs(
-    title = "Projected international immigration into Birmingham",
-    subtitle = "ONS 2022-based migration-category variant",
-    x = "Projection year",
-    y = "International immigrants"
-  ) +
-  theme_minimal()
-
 # ============================================================
 # Turn bham_international_immigration  age-sex data into shares instead of counts
 # ============================================================
@@ -221,7 +194,28 @@ bham_international_immigration_full %>%
 
 
 
-
+bham_international_immigration_full %>%
+  group_by(Year) %>%
+  summarise(
+    immigration = sum(immigration_count),
+    .groups = "drop"
+  ) %>%
+  ggplot(
+    aes(
+      x = Year,
+      y = immigration
+    )
+  ) +
+  geom_line() +
+  geom_point() +
+  scale_y_continuous(limits = c(0,40000))+
+  labs(
+    title = "Projected international immigration into Birmingham",
+    subtitle = "ONS 2022-based migration-category variant",
+    x = "Projection year",
+    y = "International immigrants"
+  ) +
+  theme_minimal()
 
 
 
