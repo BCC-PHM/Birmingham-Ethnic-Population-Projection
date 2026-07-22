@@ -190,7 +190,7 @@ bham_international_immigration_full = bind_rows(
 
 bham_international_immigration_full %>%
   select(Year, eth_code, sex, Age, immigration_count) %>%
-  write_csv("data/processed/Birmingham_international_immigration_flow_single_year.csv")
+  write_csv("data/processed/06_Birmingham_international_immigration_flow_single_year.csv")
 
 
 

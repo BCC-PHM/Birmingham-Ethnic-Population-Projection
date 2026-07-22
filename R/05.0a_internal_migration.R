@@ -1,6 +1,6 @@
 setwd("C:/Users/TMPACGAG/OneDrive - Birmingham City Council/Documents/R projects/PHM/BCC ethnic population projection")
 # ============================================================
-# 05.0a_migration.R
+# 05.0a_internal_migration.R
 # process the publicly available migration 
 # using ethnic composition and redistribute
 # ============================================================
@@ -286,6 +286,7 @@ internal_n_international_in_bham = Rees_internal_in_prop %>%
   ) %>%
   arrange(eth_code)
 
+# write_rds(internal_n_international_in_bham, "data/processed/Birmingham_international_immigration_ethnic_profile.rds")
 
 internal_out_bham = Rees_internal_out_prop %>%
   left_join(
@@ -302,6 +303,8 @@ internal_out_bham = Rees_internal_out_prop %>%
                                  "CHI","OAS","BLA","BLC","OBL","OTH"))
   ) %>%
   arrange(eth_code)
+
+# write_rds(internal_out_bham, "data/processed/Birmingham_internal_out_ethnic_profile.rds")
 
 
 international_in_RUK = Rees_international_in_RUK_prop %>% 
@@ -577,7 +580,7 @@ migration_ethagesex = internal_out_rates_ethagesex %>%
   arrange(eth_code, sex, Age)
 
 
-write_csv(migration_ethagesex, "data/processed/Birmingham_internal_migration_rates_single_year.csv")
+write_csv(migration_ethagesex, "data/processed/05_Birmingham_internal_migration_rates_single_year.csv")
 
 # ============================================================
 

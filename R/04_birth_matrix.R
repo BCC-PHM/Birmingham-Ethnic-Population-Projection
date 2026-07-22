@@ -91,7 +91,7 @@ mixing_matrix_complete = MSDS_data_filtered %>%
   print(n = 144)
 
 
-write.csv(mixing_matrix_complete, "data/processed/birth_transition_matrix.csv")
+write.csv(mixing_matrix_complete, "data/processed/04_birth_transition_matrix.csv")
 
 
 # mixing_matrix_complete %>%

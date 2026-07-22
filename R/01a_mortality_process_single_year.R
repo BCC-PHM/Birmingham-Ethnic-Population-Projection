@@ -129,6 +129,11 @@ ggplot()+
   geom_line(data=national_lifetable, aes(x=as.numeric(age),y=qx))+
   facet_wrap(~DEC_SEX)
 
+ggplot() +
+  geom_line(data = eth_single_qx_0_89,aes(age, qx, colour = eth_code, group = interaction(eth_code, DEC_SEX))) +
+  geom_line(data = national_lifetable %>% mutate(DEC_SEX = Gender), aes(age, qx, group = Gender)) +
+  facet_wrap(~DEC_SEX)
+
 #-==========================================================
 #apply Kannisto model to extrapolate qx for 90 and above
 #-==========================================================
@@ -226,7 +231,7 @@ eth_single_qx_0_100_future %>%
   geom_line()+
   facet_wrap(~DEC_SEX )
 
-write_csv(eth_single_qx_0_100_future, "data/processed/Birmingham_mortality_rate_0_100_projected.csv")
+write_csv(eth_single_qx_0_100_future, "data/processed/01_02_Birmingham_mortality_rate_0_100_projected.csv")
 
 
 
