@@ -66,7 +66,7 @@ bham_eth_pop = eth_pop %>%
             .groups = "drop")
 
 
-write_rds()
+write_rds(bham_eth_pop, "data/processed/09_bham_eth_pop.rds")
 
 
 

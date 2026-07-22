@@ -163,12 +163,13 @@ for (i in 1:nrow(groups)){
   out = kannisto(mx_vec, est.ages = 80:89, proj.ages = 90:100)
   
   # keep only 90:100
-  tail_df <- data.frame(
+  tail_df = data.frame(
     eth_code = this_eth,
     DEC_SEX  = this_sex,
     age      = 90:100,
-    qx       = 1 - exp(-out[as.character(90:100)])
-  )
+    mx_kan       = 1 - exp(-out[as.character(90:100)])
+  )%>%
+    mutate(qx = if_else(age == 100, 1, 1 - exp(-mx_kan)))
   
   tail_list[[i]] =  tail_df
 }
@@ -178,7 +179,7 @@ kannisto_tail = bind_rows(tail_list)
 
 
 # join relational 0-89 with Kannisto 90-100
-eth_single_qx_0_100 = bind_rows(eth_single_qx_0_89, kannisto_tail) %>%
+eth_single_qx_0_100 = bind_rows(eth_single_qx_0_89%>% mutate(mx_kan = NA_real_), kannisto_tail) %>%
   arrange(eth_code, DEC_SEX, age)
 
 
@@ -199,25 +200,25 @@ improvement_rate = improvement_rate %>%
          cum_factor = cumprod(1 - r) )
 
 
-eth_single_qx_0_100_future = eth_single_qx_0_100 %>% 
-  mutate(mx = -log(1-qx)) %>% 
+eth_single_qx_0_100_future = eth_single_qx_0_100 %>%
+  mutate(mx_base = if_else(age == 100, mx_kan, -log(1 - qx))) %>%
   cross_join(improvement_rate) %>%
   mutate(
-    mx_future = mx * cum_factor,     # this age's base mx, cumulatively improved
-    qx_future = 1 - exp(-mx_future)  # back to qx
-  ) %>% 
-  select(DEC_SEX, eth_code, age, year, qx_future) %>% 
-  group_by(eth_code, DEC_SEX,year) %>%
+    mx_future = mx_base * cum_factor,
+    qx_future = if_else(age == 100, 1, 1 - exp(-mx_future))
+  ) %>%
+  select(DEC_SEX, eth_code, age, year, qx_future, mx_future) %>%
+  group_by(eth_code, DEC_SEX, year) %>%
   arrange(age, .by_group = TRUE) %>%
   mutate(
     ax = case_when(age == 0 ~ 0.07,
-                   age == max(age) ~ NA_real_,   # open interval, handled below
+                   age == max(age) ~ NA_real_,
                    TRUE ~ 0.5),
     lx = 100000 * cumprod(lag(1 - qx_future, default = 1)),
     dx = lx * qx_future,
-    mx = -log(1 - qx_future),
+    mx = mx_future,
     Lx = if_else(age == max(age),
-                 lx / mx,                          # open-age person-years
+                 lx / mx_future,
                  lead(lx) + ax * dx),
     Tx = rev(cumsum(rev(Lx))),
     ex = Tx / lx
@@ -231,7 +232,40 @@ eth_single_qx_0_100_future %>%
   geom_line()+
   facet_wrap(~DEC_SEX )
 
-write_csv(eth_single_qx_0_100_future, "data/processed/01_02_Birmingham_mortality_rate_0_100_projected.csv")
+
+
+
+
+birth_survival = eth_single_qx_0_100_future %>%
+  filter(age == 0) %>%
+  transmute(
+    year, eth_code, DEC_SEX,
+    birth_survival = Lx / 100000
+  )
+
+
+
+
+mortality_input = eth_single_qx_0_100_future %>%
+  arrange(year, eth_code, DEC_SEX, age) %>%
+  group_by(year, eth_code, DEC_SEX) %>%
+  mutate(
+    survival_probability = case_when(
+      age <= 98  ~ lead(Lx) / Lx,
+      age == 99  ~ lead(lx) / lx,
+      age == 100 ~ 1 - lx / Lx
+    ),
+    mx_for_deaths = mx
+  ) %>%
+  ungroup() %>%
+  select(year, eth_code, DEC_SEX, age, survival_probability, mx_for_deaths) %>%
+  left_join(birth_survival, by = c("year", "eth_code", "DEC_SEX"))
+
+
+
+
+write_csv(mortality_input, "data/processed/01_02_Birmingham_mortality_rate_0_100_projected.csv")
+
 
 
 
