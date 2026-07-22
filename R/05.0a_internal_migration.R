@@ -428,11 +428,15 @@ bham_internal_in_rate = internal_out_bham %>%
   left_join(internal_n_international_in_bham %>% select(eth_code, IN_B),
             by = "eth_code") %>% 
   left_join(ruk_base_pop_12grp, by = "eth_code") %>% 
-  mutate(SS_R = pop_rest-OUT_B-INt_RUK, #survivng stayers of the rest of UK
-         WS_R = SS_R+IN_B,              #everyone who started in the year in RUK and still alive
-         in_rate = IN_B/WS_R) %>% 
+  mutate(
+         in_rate = IN_B / pop_rest) %>% 
   select(eth_code,in_rate)
 
+#we cannot use this anymore becuase we are unable to ge the within survivor of RUK
+#instead we now will just use population stock so we use poprest denominator to match 
+# SS_R = pop_rest-OUT_B-INt_RUK, #survivng stayers of the rest of UK
+# WS_R = SS_R+IN_B,              #everyone who started in the year in RUK and still alive
+# in_rate = IN_B/WS_R,
 
 migration_rates_allages = bham_internal_in_rate %>% 
   left_join(bham_internal_out_rate, by = "eth_code")
