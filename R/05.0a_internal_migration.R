@@ -506,6 +506,8 @@ age_sex_bham_out_series = bham_migration_agesex_series %>%
            sex == "F" ~ "Female",
            sex == "M" ~ "Male",
            TRUE ~ as.character(sex))) %>% 
+  filter(!is.na(Age)) %>%
+  mutate(Age = pmin(Age, 100)) %>% 
   group_by(year,sex,Age) %>% 
   summarise(out_count = sum(out_count), .groups = "drop") 
 
@@ -524,6 +526,8 @@ age_sex_bham_in_series = bham_migration_agesex_series %>%
            sex == "F" ~ "Female",
            sex == "M" ~ "Male",
            TRUE ~ as.character(sex))) %>% 
+  filter(!is.na(Age)) %>%
+  mutate(Age = pmin(Age, 100)) %>% 
   group_by(year,sex,Age) %>% 
   summarise(in_count = sum(in_count), .groups = "drop") 
 
@@ -645,67 +649,123 @@ migration_ethagesex = internal_out_rates_ethagesex %>%
 
 
 # ============================================================
-# All-group Census base probabilities
-# These are the denominators of the ONS updating indexes
+# Rees-style updating index (Table 10.2: "time series index
+# applied to Census probabilities")
+# Census gives ethnic differentials; ONS gives the level.
 # ============================================================
 
-census_out_probability =sum(bham_internal_out_rate$OUT_B,na.rm = TRUE) /sum(bham_internal_out_rate$WS_B,na.rm = TRUE)
 
-census_in_probability =sum(bham_internal_in_rate$IN_B,na.rm = TRUE) / sum(bham_internal_in_rate$pop_rest,na.rm = TRUE)
-
-census_base_probabilities = tibble(
-  direction = c("Internal in", "Internal out"),
-  probability = c(
-    census_in_probability,
-    census_out_probability
-  )
-)
-#rename for clearity
-census_in_rate_rew_to_bham =
-  census_in_probability
-
-census_out_rate_bham_to_rew =
-  census_out_probability
-
-#now calculate the 2022 ONS probabilities
-
-ons_2021_probabilities = bham_schedule %>%
-  summarise(
-    ons_out_flow =sum(out_count, na.rm = TRUE),
-    ons_in_flow = sum(in_count, na.rm = TRUE),
-    bham_exposure =sum(pop, na.rm = TRUE),
-    rew_exposure =sum(pop_ruk, na.rm = TRUE),
-    ons_out_probability =ons_out_flow / bham_exposure,
-    ons_in_probability =ons_in_flow / rew_exposure
-  )
-
-ons_2021_probabilities
-
-
-internal_migration_index_2021 =ons_2021_probabilities %>%
+#Calculate the direct age-sex index
+base_age_sex_probability = age_sex_bham_migration_series %>%
+  filter(year == 2021) %>%
+  left_join(birmingham_age_sex_ethnic_pop %>%rename(pop_bham = pop),
+    by = c("sex", "Age"),
+    relationship = "many-to-one") %>%
+  left_join(RUK_age_sex_ethnic_pop %>%rename(pop_ruk = pop),
+    by = c("sex", "Age"),
+    relationship = "many-to-one") %>%
   transmute(
-    year = 2021,
-    
-    census_out_probability =census_out_rate_bham_to_rew,
-    ons_out_probability,
-    out_index =ons_out_probability /census_out_rate_bham_to_rew,
-    census_in_probability = census_in_rate_rew_to_bham,
-    ons_in_probability,
-    in_index =ons_in_probability /census_in_rate_rew_to_bham
+    sex,
+    Age,
+    base_out_probability_as = out_count / pop_bham,
+    base_in_probability_as  = in_count / pop_ruk
   )
 
-internal_migration_index_2021
+internal_migration_index_as_observed =age_sex_bham_migration_series %>%
+  filter(year >= 2022) %>%
+  left_join( birmingham_age_sex_ethnic_pop %>%rename(pop_bham = pop),
+    by = c("sex", "Age"),
+    relationship = "many-to-one") %>%
+  left_join(RUK_age_sex_ethnic_pop %>%rename(pop_ruk = pop),
+    by = c("sex", "Age"),
+    relationship = "many-to-one") %>%
+  mutate(
+    observed_out_probability_as =out_count / pop_bham,
+    observed_in_probability_as =in_count / pop_ruk
+  ) %>%
+  left_join(base_age_sex_probability,
+    by = c("sex", "Age"),
+    relationship = "many-to-one") %>%
+  mutate(
+    out_index_as = observed_out_probability_as / base_out_probability_as,
+    in_index_as =observed_in_probability_as / base_in_probability_as
+  ) %>%
+  select(year,sex,Age,out_index_as,in_index_as)
+
+
+internal_migration_index_as_observed =internal_migration_index_as_observed %>%
+  group_by(year, sex) %>%
+  mutate(
+    # Convert Inf and NaN caused by zero 2021 probabilities to NA
+    out_index_as = if_else(is.finite(out_index_as),
+                           out_index_as,
+                           NA_real_),
+    
+    in_index_as = if_else(is.finite(in_index_as), 
+                          in_index_as,
+                          NA_real_),
+    
+    # Match your existing treatment of ages above 90
+    out_index_as = if_else(Age > 90,
+                           mean(out_index_as[Age %in% 80:90], na.rm = TRUE),
+                           out_index_as),
+    
+    in_index_as = if_else(Age > 90,
+                          mean(in_index_as[Age %in% 80:90], na.rm = TRUE),
+                          in_index_as),
+    
+    # Fallback for any other isolated zero-base cells
+    out_index_as = coalesce( out_index_as,median(out_index_as, na.rm = TRUE)),
+    in_index_as = coalesce(in_index_as, median(in_index_as, na.rm = TRUE))) %>%
+  ungroup()
 
 
 
 
 
+# Hold the median 2022–2024 age-sex index constant from 2025 onwards
+future_index_as =
+  internal_migration_index_as_observed %>%
+  group_by(sex, Age) %>%
+  summarise(
+    future_out_index_as = median(out_index_as, na.rm = TRUE),
+    future_in_index_as  = median(in_index_as,  na.rm = TRUE),
+    .groups = "drop"
+  )
+
+migration_ethagesex_projected =
+  migration_ethagesex %>%
+  cross_join(tibble(year = 2022:2047)) %>%
+  left_join(
+    internal_migration_index_as_observed,
+    by = c("year", "sex", "Age"),
+    relationship = "many-to-one") %>%
+  left_join(
+    future_index_as,
+    by = c("sex", "Age"),
+    relationship = "many-to-one") %>%
+  mutate(
+    out_index_as = coalesce(out_index_as, future_out_index_as),
+    in_index_as  = coalesce(in_index_as,  future_in_index_as),
+    out_rate_as = out_rate_as * out_index_as,
+    in_rate_as  = in_rate_as  * in_index_as) %>%
+  select(year,eth_code,sex, Age,out_rate_as,in_rate_as,IN_B_as) %>%
+  arrange(year, eth_code, sex, Age)
+  
+migration_ethagesex_projected %>%
+  summarise(
+    missing_out  = sum(is.na(out_rate_as)),
+    missing_in   = sum(is.na(in_rate_as)),
+    infinite_out = sum(is.infinite(out_rate_as)),
+    infinite_in  = sum(is.infinite(in_rate_as)),
+    max_out_rate = max(out_rate_as, na.rm = TRUE),
+    n_above_1    = sum(out_rate_as > 1, na.rm = TRUE)
+  )
 
 
 
 
-
-write_csv(migration_ethagesex, "data/processed/05_Birmingham_internal_migration_rates_single_year.csv")
+write_csv(migration_ethagesex_projected, "data/processed/05_Birmingham_internal_migration_rates_single_year.csv")
 
 # ============================================================
 

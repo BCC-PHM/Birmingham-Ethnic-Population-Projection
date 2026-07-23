@@ -64,9 +64,9 @@ bham_eth_pop = read_rds(inputfiles[8])
 start_population = bham_eth_pop %>%
   transmute(
     year = 2021,
-    eth_code,
-    sex = SEX,
-    age = Age,
+    eth_code = as.character(eth_code),
+    sex = as.character(SEX),
+    age = as.integer(Age),
     population = Observation
   ) %>%
   arrange(eth_code, sex, age)
@@ -236,10 +236,10 @@ for (current_year in 2021:2046) {
 # apply internal out-migration from Birmingham
 
  population_after_internal_out = within_country_survivors_bham %>%
-  left_join(internal_migration %>% select(eth_code, sex, age, out_rate_as),
+  left_join(internal_migration %>%filter(year == projection_year) %>%  select(eth_code, sex, age, out_rate_as_updated),
             by =  c("eth_code", "sex", "age")) %>% 
-  mutate(out_rate_as = replace_na(out_rate_as, 0),
-         internal_out_migrants = WS_B * out_rate_as,
+  mutate(out_rate_as_updated= replace_na(out_rate_as_updated, 0),
+         internal_out_migrants = WS_B * out_rate_as_updated,
          population_after_internal_out = WS_B - internal_out_migrants)  
   
 # ==========================================================
@@ -247,11 +247,11 @@ for (current_year in 2021:2046) {
 # ==========================================================
   internal_in_current =projected_REW %>%
     filter(year == current_year)%>%   
-    left_join(internal_migration %>%select(eth_code,sex,age,in_rate_as),
+    left_join(internal_migration %>%filter(year == projection_year) %>% select(eth_code,sex,age,in_rate_as_updated),
               by = c("eth_code", "sex", "age")) %>% 
     mutate(
-      in_rate_as = replace_na(in_rate_as, 0),
-      internal_in_migrants = ruk_ethnic_population * in_rate_as,
+      in_rate_as_updated = replace_na(in_rate_as_updated, 0),
+      internal_in_migrants = ruk_ethnic_population * in_rate_as_updated,
       year = projection_year
     ) %>%
     group_by(year, eth_code, sex, age) %>%
@@ -421,6 +421,71 @@ for (current_year in 2021:2046) {
   # End population becomes the start of the next cycle
   start_population = end_population
 }
+
+
+
+
+full_population_projection =
+  bind_rows(projection_list)
+
+full_population_projection %>% 
+  group_by(year) %>% 
+  summarise(population = sum(population),
+            .groups = "drop") %>% 
+  ggplot(aes(x=year, y=population))+
+  geom_line()
+
+
+full_component_projection =
+  bind_rows(component_projection_list)
+
+
+annual_components = full_component_projection %>%
+  group_by(year) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =
+      births - deaths,
+    
+    internal_in =
+      sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =
+      sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =
+      internal_in - internal_out,
+    
+    international_in =
+      sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =
+      sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =
+      international_in - international_out,
+    
+    projected_change =
+      natural_change +
+      net_internal +
+      net_international,
+    
+    end_population =
+      sum(end_population, na.rm = TRUE),
+    
+    .groups = "drop"
+  )
+
+
+
+
+
+
+
+
+
 
 
 
