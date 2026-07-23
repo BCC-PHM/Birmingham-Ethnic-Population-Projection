@@ -417,7 +417,10 @@ bham_internal_out_rate = internal_n_international_in_bham %>%
   mutate(SS_B = pop_2021 - IN_B-INt_B, #survivng stayers 
          WS_B = SS_B+OUT_B,            #everyone who started in the year in Bham and still alive    
          out_rate = OUT_B/WS_B) %>% 
-  select(eth_code, out_rate)
+  select(eth_code,
+         OUT_B,
+         WS_B,
+         out_rate)
   
 
 
@@ -430,7 +433,10 @@ bham_internal_in_rate = internal_out_bham %>%
   left_join(ruk_base_pop_12grp, by = "eth_code") %>% 
   mutate(
          in_rate = IN_B / pop_rest) %>% 
-  select(eth_code,in_rate)
+  select(eth_code,
+         IN_B,
+         pop_rest,
+         in_rate)
 
 #we cannot use this anymore becuase we are unable to ge the within survivor of RUK
 #instead we now will just use population stock so we use poprest denominator to match 
@@ -439,8 +445,15 @@ bham_internal_in_rate = internal_out_bham %>%
 # in_rate = IN_B/WS_R,
 
 migration_rates_allages = bham_internal_in_rate %>% 
-  left_join(bham_internal_out_rate, by = "eth_code")
-
+  select(
+    eth_code,
+    in_rate
+  ) %>%
+  left_join(bham_internal_out_rate%>%
+              select(
+                eth_code,
+                out_rate
+              ), by = "eth_code")
 
 #===========================================================================================
 #get singel year of age-sex schedule 
@@ -448,36 +461,83 @@ migration_rates_allages = bham_internal_in_rate %>%
 #inla = Nine-digit code for the local authority which is the destination of an internal migration flow
 #This part can be reused once we comission a table from ONS to obtain the observed subgroup ethnic migration 😉
 # =============================================================================================
-bham_migration_agesex = read_excel("data/migration/age_sex_migration_schedule_2022.xlsx", 
+bham_migration_agesex = read_excel("data/migration/age_sex_migration_schedule_2021.xlsx", 
+                                   sheet = "2021 on 2021 LAs")
+
+bham_migration_agesex = bham_migration_agesex %>% rename(year=Year)
+
+bham_migration_agesex2022 = read_excel("data/migration/age_sex_migration_schedule_2022.xlsx",
                                    sheet = "IM2022 on 2023 LAs")
+
+bham_migration_agesex2023 = read_excel("data/migration/age_sex_migration_schedule_2023.xlsx", 
+                                       sheet = "IM2023 on 2023 LAs")
+
+bham_migration_agesex2024 = read_excel("data/migration/age_sex_migration_schedule_2024.xlsx", 
+                                       sheet = "IM2024 on 2023 LAs")
+# Combine ONS internal migration matrices, 2021–2024
+
+
+bham_migration_agesex_series = bind_rows(
+  bham_migration_agesex %>%
+    mutate(year = 2021),
+  
+  bham_migration_agesex2022 %>%
+    mutate(year = 2022),
+  
+  bham_migration_agesex2023 %>%
+    mutate(year = 2023),
+  
+  bham_migration_agesex2024 %>%
+    mutate(year = 2024)
+)
 
 #-----------------------------------------------------------------
 #get the birmingham out 
-age_sex_bham_out = bham_migration_agesex %>% 
+age_sex_bham_out_series = bham_migration_agesex_series %>% 
   filter(outla == "E08000025",
          inla  != "E08000025") %>% 
-  pivot_longer(cols = c(-outla,-inla,-sex,-year),
-               values_to = "count",
+  pivot_longer(cols = starts_with("Age_"),
+               values_to = "out_count",
                names_to = "Age") %>% 
   mutate(Age = str_replace(Age, "Age_", ""),
          Age = if_else(Age == "100+", "100", Age),
-         Age = as.integer(Age)) %>% 
-  group_by(sex,Age) %>% 
-  summarise(out_count = sum(count), .groups = "drop") 
+         Age = as.integer(Age),
+         sex = case_when(
+           sex == "F" ~ "Female",
+           sex == "M" ~ "Male",
+           TRUE ~ as.character(sex))) %>% 
+  group_by(year,sex,Age) %>% 
+  summarise(out_count = sum(out_count), .groups = "drop") 
 
 
 #get the birmingham in
-age_sex_bham_in = bham_migration_agesex %>% 
+age_sex_bham_in_series = bham_migration_agesex_series %>% 
   filter(inla  == "E08000025",
          outla != "E08000025")%>% 
-  pivot_longer(cols = c(-outla,-inla,-sex,-year),
-               values_to = "count",
+  pivot_longer(cols = starts_with("Age_"),
+               values_to = "in_count",
                names_to = "Age") %>% 
   mutate(Age = str_replace(Age, "Age_", ""),
          Age = if_else(Age == "100+", "100", Age),
-         Age = as.integer(Age)) %>% 
-  group_by(sex,Age) %>% 
-  summarise(in_count = sum(count), .groups = "drop") 
+         Age = as.integer(Age),
+         sex = case_when(
+           sex == "F" ~ "Female",
+           sex == "M" ~ "Male",
+           TRUE ~ as.character(sex))) %>% 
+  group_by(year,sex,Age) %>% 
+  summarise(in_count = sum(in_count), .groups = "drop") 
+
+
+age_sex_bham_migration_series =
+  full_join(
+    age_sex_bham_out_series,
+    age_sex_bham_in_series,
+    by = c("year", "sex", "Age")
+  ) %>%
+  mutate(
+    out_count = replace_na(out_count, 0),
+    in_count = replace_na(in_count, 0)
+  )
 
 #-----------------------------------------------------------------
 # Build ratios of the profiles
@@ -508,9 +568,8 @@ RUK_age_sex_ethnic_pop = raw_pop %>%
 
 
 
-bham_schedule = age_sex_bham_out %>%
-  left_join(age_sex_bham_in, by = c("sex", "Age")) %>%
-  mutate(sex = ifelse(sex == "F", "Female", "Male")) %>% 
+bham_schedule = age_sex_bham_migration_series %>%
+  filter(year == 2021) %>% 
   left_join(birmingham_age_sex_ethnic_pop, by = c("sex", "Age")) %>% 
   left_join(RUK_age_sex_ethnic_pop %>% rename(pop_ruk = pop),
             by = c("sex","Age")) %>%  
@@ -519,8 +578,8 @@ bham_schedule = age_sex_bham_out %>%
     in_rate_raw  = in_count  / pop_ruk     # RUK origin  ← was pop
   ) %>%
   mutate(
-    out_mean = sum(out_count) / sum(pop),
-    in_mean  = sum(in_count)  / sum(pop_ruk),   # ← was pop
+    out_mean = sum(out_count,na.rm = TRUE) / sum(pop,na.rm = TRUE),
+    in_mean  = sum(in_count,na.rm = TRUE)  / sum(pop_ruk,na.rm = TRUE),   # ← was pop
     out_weight = out_rate_raw / out_mean,
     in_weight  = in_rate_raw  / in_mean
   ) %>%
@@ -533,9 +592,9 @@ bham_schedule = age_sex_bham_out %>%
 
 #---------------------------------------------------------
 # pure arrival-share allocation (kept alongside Option A)
-bham_in_schedule = age_sex_bham_in %>%
-  mutate(sex = ifelse(sex == "F", "Female", "Male"),
-         arrival_share = in_count / sum(in_count))
+bham_in_schedule =  bham_schedule %>%
+  select(sex,Age,in_count) %>% 
+  mutate(arrival_share = in_count / sum(in_count, na.rm = TRUE))
 stopifnot(abs(sum(bham_in_schedule$arrival_share) - 1) < 1e-10)
 
 internal_in_counts_ethagesex = internal_n_international_in_bham %>%
@@ -582,6 +641,68 @@ migration_ethagesex = internal_out_rates_ethagesex %>%
   left_join(internal_in_counts_ethagesex %>% select(eth_code, sex, Age, IN_B_as),
             by = c("eth_code","sex","Age")) %>%
   arrange(eth_code, sex, Age)
+
+
+
+# ============================================================
+# All-group Census base probabilities
+# These are the denominators of the ONS updating indexes
+# ============================================================
+
+census_out_probability =sum(bham_internal_out_rate$OUT_B,na.rm = TRUE) /sum(bham_internal_out_rate$WS_B,na.rm = TRUE)
+
+census_in_probability =sum(bham_internal_in_rate$IN_B,na.rm = TRUE) / sum(bham_internal_in_rate$pop_rest,na.rm = TRUE)
+
+census_base_probabilities = tibble(
+  direction = c("Internal in", "Internal out"),
+  probability = c(
+    census_in_probability,
+    census_out_probability
+  )
+)
+#rename for clearity
+census_in_rate_rew_to_bham =
+  census_in_probability
+
+census_out_rate_bham_to_rew =
+  census_out_probability
+
+#now calculate the 2022 ONS probabilities
+
+ons_2021_probabilities = bham_schedule %>%
+  summarise(
+    ons_out_flow =sum(out_count, na.rm = TRUE),
+    ons_in_flow = sum(in_count, na.rm = TRUE),
+    bham_exposure =sum(pop, na.rm = TRUE),
+    rew_exposure =sum(pop_ruk, na.rm = TRUE),
+    ons_out_probability =ons_out_flow / bham_exposure,
+    ons_in_probability =ons_in_flow / rew_exposure
+  )
+
+ons_2021_probabilities
+
+
+internal_migration_index_2021 =ons_2021_probabilities %>%
+  transmute(
+    year = 2021,
+    
+    census_out_probability =census_out_rate_bham_to_rew,
+    ons_out_probability,
+    out_index =ons_out_probability /census_out_rate_bham_to_rew,
+    census_in_probability = census_in_rate_rew_to_bham,
+    ons_in_probability,
+    in_index =ons_in_probability /census_in_rate_rew_to_bham
+  )
+
+internal_migration_index_2021
+
+
+
+
+
+
+
+
 
 
 write_csv(migration_ethagesex, "data/processed/05_Birmingham_internal_migration_rates_single_year.csv")
