@@ -209,10 +209,7 @@ for (current_year in 2021:2046) {
 # ========================================================== 
   
  international_emigration_current = international_emigration%>%
-    filter(year == current_year) %>% 
-    mutate(
-      year = projection_year
-    ) %>% 
+    filter(year == projection_year) %>% 
     group_by(year, eth_code, sex, age) %>%
     summarise(
       international_emigrants =
@@ -236,10 +233,10 @@ for (current_year in 2021:2046) {
 # apply internal out-migration from Birmingham
 
  population_after_internal_out = within_country_survivors_bham %>%
-  left_join(internal_migration %>%filter(year == projection_year) %>%  select(eth_code, sex, age, out_rate_as_updated),
+  left_join(internal_migration %>%filter(year == projection_year) %>%  select(eth_code, sex, age, out_rate_as),
             by =  c("eth_code", "sex", "age")) %>% 
-  mutate(out_rate_as_updated= replace_na(out_rate_as_updated, 0),
-         internal_out_migrants = WS_B * out_rate_as_updated,
+  mutate(out_rate_as = replace_na(out_rate_as, 0),
+         internal_out_migrants = WS_B * out_rate_as,
          population_after_internal_out = WS_B - internal_out_migrants)  
   
 # ==========================================================
@@ -247,11 +244,11 @@ for (current_year in 2021:2046) {
 # ==========================================================
   internal_in_current =projected_REW %>%
     filter(year == current_year)%>%   
-    left_join(internal_migration %>%filter(year == projection_year) %>% select(eth_code,sex,age,in_rate_as_updated),
+    left_join(internal_migration %>%filter(year == projection_year) %>% select(eth_code,sex,age,in_rate_as),
               by = c("eth_code", "sex", "age")) %>% 
     mutate(
-      in_rate_as_updated = replace_na(in_rate_as_updated, 0),
-      internal_in_migrants = ruk_ethnic_population * in_rate_as_updated,
+      in_rate_as = replace_na(in_rate_as, 0),
+      internal_in_migrants = ruk_ethnic_population * in_rate_as,
       year = projection_year
     ) %>%
     group_by(year, eth_code, sex, age) %>%
@@ -267,10 +264,7 @@ for (current_year in 2021:2046) {
 # ============================================================
 
  international_immigration_current = international_immigration %>%
-  filter(year == current_year) %>% 
-  mutate(
-    year = projection_year
-  ) %>%
+  filter(year == projection_year) %>% 
   group_by(year, eth_code, sex, age) %>%
   summarise(
     international_immigrants = sum(international_immigrants, na.rm = TRUE),
