@@ -458,25 +458,40 @@ ONS_2021_adjusted_match_MSDS =ONS_fertility_projection %>% rename(
 
 
 #ONS scaling factor 
-ONS_scaling_factors = ONS_5yr %>% 
-  bind_rows(ONS_2021_adjusted_match_MSDS) %>% 
-  group_by(age_group_5yr) %>% 
+ONS_scaling_factors = ONS_full_2021_2061 %>%
   mutate(
-    ons_2021 = ons_asfr[Year == 2021][1],
-    ons_scaling_factor = ons_asfr / ons_2021
+    Year = as.integer(Year),
+    
+    age_group_5yr = case_when(
+      age_group_5yr == "age_15_19" ~ "15-19",
+      age_group_5yr == "age20_24"   ~ "20-24",
+      age_group_5yr == "age25_29"   ~ "25-29",
+      age_group_5yr == "age30_34"   ~ "30-34",
+      age_group_5yr == "age35_39"   ~ "35-39",
+      age_group_5yr == "age40_44"   ~ "40-44",
+      age_group_5yr == "age_45_49"  ~ "45-49",
+      TRUE ~ age_group_5yr
+    )
+  ) %>%
+  group_by(age_group_5yr) %>%
+  mutate(
+    ons_asfr_2025 = ons_asfr[Year == 2025][1],
+    
+    ons_scaling_factor = case_when(
+      Year <= 2025 ~ 1,
+      Year >= 2026 ~ ons_asfr / ons_asfr_2025
+    )
+  ) %>%
+  ungroup() %>%
+  filter(Year >= 2021, Year <= 2061) %>%
+  select(
+    Year,
+    age_group_5yr,
+    ons_asfr,
+    ons_asfr_2025,
+    ons_scaling_factor
   ) %>% 
-  ungroup() %>% 
-  arrange(Year, age_group_5yr) %>% 
-  mutate(age_group_5yr =case_when(
-    age_group_5yr == "age_15_19" ~ "15-19",
-    age_group_5yr == "age20_24"  ~ "20-24",
-    age_group_5yr == "age25_29"  ~ "25-29",
-    age_group_5yr == "age30_34"  ~ "30-34",
-    age_group_5yr == "age35_39"  ~ "35-39",
-    age_group_5yr == "age40_44"  ~ "40-44",
-    age_group_5yr == "age_45_49" ~ "45-49",
-    TRUE ~ age_group_5yr
-  ))
+  mutate(Year = as.character(Year))
 
 
 #=============================================================
@@ -801,42 +816,54 @@ stacked = data.table::rbindlist(tables, idcol = "eth_code_mother") %>%
   select(eth_code, everything())
 
 #--------------------------------------------------------------------
-# Projecting the single-year ASFRs using ONS annual scaling
-# Baseline is matched to MSDS: average ONS ASFR over 2022–2025
+# Project ethnicity-specific single-year ASFRs using the ONS TFR trajectory
+#
+# The baseline ethnic and age-specific ASFR schedules are retained.
+# The same annual proportional adjustment is applied to every ethnicity and age.
 
-ons_scaling_annual = ONS_full_2021_2061 %>%
-  mutate(age_group_5yr = case_when(
-    age_group_5yr == "age_15_19" ~ "15-19",
-    age_group_5yr == "age20_24"  ~ "20-24",
-    age_group_5yr == "age25_29"  ~ "25-29",
-    age_group_5yr == "age30_34"  ~ "30-34",
-    age_group_5yr == "age35_39"  ~ "35-39",
-    age_group_5yr == "age40_44"  ~ "40-44",
-    age_group_5yr == "age_45_49" ~ "45-49",
-    TRUE ~ age_group_5yr
-  )) %>%
-  mutate(Year = as.integer(Year)) %>%
-  group_by(age_group_5yr) %>%
+ons_tfr_trajectory = tibble( Year = 2021:2061) %>% 
   mutate(
-    ons_baseline_2022_2025 = mean(ons_asfr[Year %in% 2022:2025], na.rm = TRUE),
-    ons_scaling_factor = ons_asfr / ons_baseline_2022_2025,
-    ons_scaling_factor = if_else(Year == 2021, 1, ons_scaling_factor)
-  ) %>%
-  ungroup() %>%
-  filter(Year >= 2021, Year <= 2061) %>%
-  select(Year, age_group_5yr, ons_asfr, ons_baseline_2022_2025, ons_scaling_factor)
-
+    ons_tfr = case_when(
+      
+      # Retain the pooled 2022–2025 Birmingham baseline
+      Year <= 2025 ~ 1.40,
+      
+      # Gradual decline from 1.40 in 2025 to 1.38 in 2029
+      Year <= 2029 ~ approx(
+        x = c(2025, 2029),
+        y = c(1.40, 1.38),
+        xout = Year
+      )$y,
+      
+      # Gradual increase from 1.38 in 2029 to 1.42 in 2049
+      Year <= 2049 ~ approx(
+        x = c(2029, 2049),
+        y = c(1.38, 1.42),
+        xout = Year
+      )$y,
+      
+      # Hold the long-term assumption constant
+      TRUE ~ 1.42
+    ),
+    
+    tfr_scaling_factor = case_when(
+      Year <= 2025 ~ 1,
+      Year >= 2026 ~ ons_tfr / ons_tfr[Year == 2025]
+    )
+  )
+  
 
 
 fertility_projected_annual = stacked %>%
-  left_join(
-    ons_scaling_annual,
-    by = "age_group_5yr",
-    relationship = "many-to-many"
-  ) %>%
-  mutate(fx = corrected_fx_single * ons_scaling_factor) %>%
-  arrange(eth_code, single_age, Year) %>%
-  select(Year, eth_code, age_group_5yr, single_age, fx)
+  select(eth_code,age_group_5yr,single_age,corrected_fx_single) %>%
+  crossing(
+    Year = 2021:2061) %>%
+  left_join(ons_tfr_trajectory,by = "Year") %>%
+  mutate(fx = corrected_fx_single * tfr_scaling_factor) %>%
+  arrange(eth_code,single_age,Year) %>%
+  select(Year,eth_code,age_group_5yr,single_age,fx,ons_tfr,tfr_scaling_factor
+  )
+
 
 
 fertility_projected_annual %>%
@@ -958,3 +985,13 @@ tibble(
         nrow(MSDS_data_filtered),
         nrow(MSDS_data_filtered_na))
 ) %>% mutate(per_year = n / 4)
+
+
+
+
+
+
+
+
+
+
