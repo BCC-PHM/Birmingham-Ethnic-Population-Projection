@@ -69,7 +69,7 @@ MSDS_counts = MSDS_data_filtered %>%
   group_by(eth_code_mother, age_group_5yr, YearOfBirthBaby) %>%
   summarise(n = n(), .groups = "drop")
 
-
+MSDS_data %>% count(YearOfBirthBaby)
 
 #---------------------------------------------------------------------
 
@@ -173,6 +173,70 @@ MSDS_counts_final = MSDS_counts_final %>%
   ) %>% 
   mutate(age_group_5yr = factor(age_group_5yr, levels = c("15-19","20-24","25-29","30-34","35-39","40-44","45-49")))
 
+
+
+#==========================================================
+# new!
+#since there are discrepancy between ons registered births and
+#MSDS births, therefore we will have to obtain the ethnic share pattern
+#and redistribute to ons births to maintain the total matching ons 
+#==========================================================
+nomis_Live_births_in_England_and_Wales = read_excel("data/fertiliy/nomis_Live births in England and Wales.xlsx", 
+                                                     skip = 6)
+
+
+ons_births_by_age = nomis_Live_births_in_England_and_Wales %>% 
+  select(-`2021`) %>%
+  filter(!`Age of mother` %in% c("Total",  "Age of mother unknown or not stated", "Mother aged under 18")) %>% 
+  pivot_longer(
+    cols = `2022`:`2025`,
+    names_to = "year",
+    values_to = "registered_births"
+  ) %>%
+  mutate(year = as.integer(year)) %>% 
+  group_by(`Age of mother`) %>% 
+  summarise(
+    ons_births_avg =
+      mean(registered_births),
+    .groups = "drop"
+  ) %>% 
+  mutate(age_group_5yr = case_when(
+    `Age of mother` == "Mother aged under 20"   ~ "15-19",
+    `Age of mother` == "Mother aged 20-24"      ~ "20-24",
+    `Age of mother` == "Mother aged 25-29"      ~ "25-29",
+    `Age of mother` == "Mother aged 30-34"      ~ "30-34",
+    `Age of mother` == "Mother aged 35-39"      ~ "35-39",
+    `Age of mother` == "Mother aged 40-44"      ~ "40-44",
+    `Age of mother` == "Mother aged 45 and over" ~ "45-49",
+    TRUE                           ~ NA_character_)) %>% 
+  select(
+    age_group_5yr,
+    ons_births_avg
+  )
+  
+#------------------------------------------------
+#obtain share 
+
+msds_ethnic_shares_by_age = MSDS_counts_final %>% 
+  group_by(eth_code_mother,age_group_5yr) %>% 
+  summarise( msds_births_avg =mean(n_total, na.rm = TRUE),
+            .groups = "drop")%>%
+  group_by(age_group_5yr) %>% 
+  mutate(
+    ethnic_share_within_age =msds_births_avg / sum(msds_births_avg, na.rm = TRUE)
+  ) %>%
+  ungroup()
+  
+
+controlled_births_eth_age =msds_ethnic_shares_by_age %>% 
+  left_join(ons_births_by_age, by = "age_group_5yr") %>% 
+  mutate(
+    controlled_births = ons_births_avg * ethnic_share_within_age
+  )
+  
+
+MSDS_counts_final = controlled_births_eth_age %>% 
+  select(age_group_5yr,eth_code_mother, n_total = controlled_births)
 
 
 
@@ -881,3 +945,16 @@ stacked %>%
                                     color = bcc_cols("black")))
 
 
+
+
+base = MSDS_data %>% filter(YearOfBirthBaby %in% 2022:2025)
+
+tibble(
+  step = c("raw", "ward ok", "ward + age 15-49", "eth known", "eth unknown"),
+  n = c(nrow(base),
+        sum(base$ElectoralWardMother %in% ward_map$Ward_Code),
+        base %>% filter(ElectoralWardMother %in% ward_map$Ward_Code,
+                        AgeRPEndDate >= 15, AgeRPEndDate <= 49) %>% nrow(),
+        nrow(MSDS_data_filtered),
+        nrow(MSDS_data_filtered_na))
+) %>% mutate(per_year = n / 4)
