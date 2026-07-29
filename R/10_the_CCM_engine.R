@@ -6,6 +6,8 @@ setwd("C:/Users/TMPACGAG/OneDrive - Birmingham City Council/Documents/R projects
 library(tidyverse)
 library(readr)
 library(readxl)
+library(bcctheme)
+
 
 inputfiles = list.files(path = "data/processed", pattern = "^[0-9]", full.names = TRUE)
 
@@ -427,7 +429,9 @@ full_population_projection %>%
   summarise(population = sum(population),
             .groups = "drop") %>% 
   ggplot(aes(x=year, y=population))+
-  geom_line()
+  geom_line()+
+  scale_y_continuous(limits = c(1000000,1300000))
+  
 
 
 full_component_projection =
@@ -468,18 +472,46 @@ annual_components = full_component_projection %>%
     
     end_population =
       sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
     
     .groups = "drop"
   )
 
 
 
+#=========================================================================
+#load the ons population projection 
+snpp2022 = read_csv("data/2022 SNPP Population persons.csv")
 
 
+bham_snpp = snpp2022 %>% 
+  filter(AREA_NAME == "Birmingham", AGE_GROUP == "All ages") %>% 
+  pivot_longer(cols = where(is.numeric),
+               names_to = "year",
+               values_to = "count") %>% 
+  mutate(series = "ONS SNPP") %>% 
+  select(year, series, count) %>% 
+  rbind(annual_components %>% 
+          select(year, count = end_population) %>% 
+          mutate(year = as.character(year),
+                 series = "In-house")%>% 
+          select(year, series,count))
 
-
-
-
-
+snpp2022 %>% 
+  filter(AREA_NAME == "Birmingham", AGE_GROUP == "All ages") %>% 
+  pivot_longer(cols = where(is.numeric),
+               names_to = "year",
+               values_to = "count") %>% 
+  mutate(series = "ONS SNPP") %>% 
+  select(year, series, count) %>% 
+  rbind(annual_components %>% 
+          select(year, count = end_population) %>% 
+          mutate(year = as.character(year),
+                 series = "In-house")%>% 
+          select(year, series,count)) %>% 
+  ggplot(aes(x=year,y=count,colour= series, group=series))+
+  geom_line()+
+  scale_y_continuous(limits = c(1100000,1300000))+
+  theme_bcc(base_size = 11)
 
 

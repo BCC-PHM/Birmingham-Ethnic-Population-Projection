@@ -1,0 +1,237 @@
+SELECT
+    CONCAT(YEAR, '_', RecordNumber) AS Year_RecordNumber,
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL AS [LA of LSOA],
+    NULL AS [2006 (10) Districts],
+    NULL AS [2018 Ward Code],
+    NULL AS [LA Code],
+    NULL AS [LA Name],
+    NULL AS [Localities]
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2013
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2014
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2015
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2016
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2017
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL,
+    [2006 (10) Districts],
+    [2018 Ward Code],
+    [LA Code],
+    [LA Name],
+    [Localities]
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2018
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2019
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2020
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    NULL AS [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    [LA of LSOA],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2021
+
+UNION ALL
+
+SELECT
+    CONCAT(YEAR, '_', RecordNumber),
+    YEAR,
+    RecordNumber,
+    [REGISTRATION DATE],
+    [GP PRACTICE CODE],
+    NULL AS [CCG Code],
+    [Place of Birth],
+    [PLACE OF BIRTH_MODIFIED_TOWN],
+    [PLACE OF BIRTH_MODIFIED_COUNTRY],
+    [ONS GEOG COUNTRY/COUNTRY GROUP CODE],
+    GENDER,
+    AGE,
+    [2011 LSOA CODE],
+    [LA of LSOA],
+    NULL,
+    NULL,
+    NULL,
+    NULL,
+    NULL
+FROM dbo.tbl_Flag4NewGPRegistrations_GPExeter_2022;

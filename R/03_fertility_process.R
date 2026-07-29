@@ -189,7 +189,7 @@ ons_births_by_age = nomis_Live_births_in_England_and_Wales %>%
   select(-`2021`) %>%
   filter(!`Age of mother` %in% c("Total",  "Age of mother unknown or not stated", "Mother aged under 18")) %>% 
   pivot_longer(
-    cols = `2022`:`2025`,
+    cols = `2022`,
     names_to = "year",
     values_to = "registered_births"
   ) %>%
@@ -197,7 +197,7 @@ ons_births_by_age = nomis_Live_births_in_England_and_Wales %>%
   group_by(`Age of mother`) %>% 
   summarise(
     ons_births_avg =
-      mean(registered_births),
+      median(registered_births),
     .groups = "drop"
   ) %>% 
   mutate(age_group_5yr = case_when(
@@ -214,10 +214,12 @@ ons_births_by_age = nomis_Live_births_in_England_and_Wales %>%
     ons_births_avg
   )
   
+ons_births_by_age %>% pull(ons_births_avg) %>% sum()
 #------------------------------------------------
 #obtain share 
 
 msds_ethnic_shares_by_age = MSDS_counts_final %>% 
+  filter(YearOfBirthBaby == 2022) %>% 
   group_by(eth_code_mother,age_group_5yr) %>% 
   summarise( msds_births_avg =mean(n_total, na.rm = TRUE),
             .groups = "drop")%>%
@@ -821,16 +823,30 @@ stacked = data.table::rbindlist(tables, idcol = "eth_code_mother") %>%
 # The baseline ethnic and age-specific ASFR schedules are retained.
 # The same annual proportional adjustment is applied to every ethnicity and age.
 
+
+
+
+ethnic_baseline_tfr = stacked %>%
+  group_by(eth_code) %>%
+  summarise(
+    baseline_tfr = sum(corrected_fx_single, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+
+
+
 ons_tfr_trajectory = tibble( Year = 2021:2061) %>% 
   mutate(
     ons_tfr = case_when(
       
-      # Retain the pooled 2022–2025 Birmingham baseline
-      Year <= 2025 ~ 1.40,
+      # Retain Observed baseline TFR sat at 1.40 
+      Year <= 2024 ~ 1.40,
       
-      # Gradual decline from 1.40 in 2025 to 1.38 in 2029
+      # Gradual decline from 1.40 in 2024 to 1.38 in 2029
       Year <= 2029 ~ approx(
-        x = c(2025, 2029),
+        x = c(2024, 2029),
         y = c(1.40, 1.38),
         xout = Year
       )$y,
@@ -847,8 +863,8 @@ ons_tfr_trajectory = tibble( Year = 2021:2061) %>%
     ),
     
     tfr_scaling_factor = case_when(
-      Year <= 2025 ~ 1,
-      Year >= 2026 ~ ons_tfr / ons_tfr[Year == 2025]
+      Year <= 2024 ~ 1,
+      Year >= 2025 ~ ons_tfr / ons_tfr[Year == 2024]
     )
   )
   
@@ -863,6 +879,22 @@ fertility_projected_annual = stacked %>%
   arrange(eth_code,single_age,Year) %>%
   select(Year,eth_code,age_group_5yr,single_age,fx,ons_tfr,tfr_scaling_factor
   )
+
+
+
+
+
+fertility_projected_annual%>%
+  filter(Year == "2032") %>% 
+  group_by(eth_code, Year) %>%
+  summarise(
+    baseline_tfr = sum(fx, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+
+
 
 
 
