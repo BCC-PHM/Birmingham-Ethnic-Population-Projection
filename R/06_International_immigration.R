@@ -28,6 +28,19 @@ bham_immigration_ethnic_share  = internal_n_international_in_bham %>%
   arrange(eth_code)
 
 # ============================================================
+# Birmingham international immigration ethnic profile
+# From flag4 
+# ============================================================
+
+flag4_immigration_share = read_rds("data/processed/061a_immigration_shares.rds")
+
+
+flag4_immigration_share =flag4_immigration_share %>% 
+  arrange(year,eth_code) %>% 
+  select(year,eth_code,ethnic_share=ethnic_shares)
+
+
+# ============================================================
 # ONS migration-category international immigration
 # Birmingham, age × sex × projection year
 # ============================================================
@@ -97,12 +110,14 @@ ons_bham_immigration_long_0_100 =bind_rows(ons_bham_immigration_long %>% filter(
 # year × ethnicity × sex × single age
 # ============================================================
 bham_international_immigration = ons_bham_immigration_long_0_100 %>%
-  cross_join(
-    bham_immigration_ethnic_share %>%
+  left_join(
+    flag4_immigration_share %>%
+      filter(year %in% 2023:2047) %>% 
       select(
+        year,
         eth_code,
         ethnic_share
-      )) %>%
+      ), by = c("Year" = "year")) %>%
   mutate(
     immigration_count = Count * ethnic_share) %>% 
   select(
@@ -147,18 +162,44 @@ MYE11_23 = MYE11_23%>%
 mye_inflow_2021 = MYE11_23 %>% pull(international_in_2021)
 mye_inflow_2022 = MYE11_23 %>% pull(international_in_2022)
 
-backfill_2021_22 = share_table %>%
-  cross_join(tibble(Year = 2021:2022)) %>%
+# ============================================================
+# Birmingham international immigration totals from MYE
+# ============================================================
+mye_inflow_totals = tibble(
+  Year = c(2021L, 2022L),
+  total_immigration = c(
+    mye_inflow_2021,
+    mye_inflow_2022 ))
+
+# ============================================================
+# Use the 2023 SNPP age-sex pattern only
+# ============================================================
+
+age_sex_share_2023 = ons_bham_immigration_long_0_100 %>%
+  filter(Year == 2023) %>%
   mutate(
-    Count             = NA_real_,               # no SNPP count for these years
-    immigration_count = ifelse(Year == 2021, share * mye_inflow_2021, share*mye_inflow_2022)
-  ) %>%
-  select(Year, eth_code, sex, Age, ethnic_share, Count, immigration_count) %>% 
-  arrange(
-    Year,
-    eth_code,
-    sex,
-    Age )
+    age_sex_share = Count / sum(Count)) %>%
+  select(sex,Age, age_sex_share)
+
+
+backfill_2021_22 = mye_inflow_totals %>%
+   # Add the 2023 age-sex distribution to each year
+  cross_join(age_sex_share_2023) %>%
+  # Add the correct ethnic shares for 2021 and 2022
+  left_join(
+    flag4_immigration_share %>%
+      filter(year %in% 2021:2022) %>%
+      select( Year = year,eth_code,ethnic_share),
+    by = "Year")  %>%
+  mutate(
+    # Total immigrants within each age-sex cell
+    Count = total_immigration * age_sex_share,
+    # Divide each age-sex cell between ethnic groups
+    immigration_count = Count * ethnic_share) %>%
+  select(Year,eth_code,sex,Age,ethnic_share,Count,immigration_count) %>%
+  arrange(Year,eth_code,sex,Age)
+
+
 
 # ============================================================
 # Extend 2048–2061: hold the 2047 schedule constant
