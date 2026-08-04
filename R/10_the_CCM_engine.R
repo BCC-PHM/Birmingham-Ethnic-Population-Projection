@@ -38,7 +38,7 @@ mortality = read_csv(inputfiles[1]) %>%
 internal_migration = read_csv(inputfiles[4]) %>%
   rename(age = Age)
 
-projected_REW = read_rds(inputfiles[7]) %>%
+projected_REW = read_rds(inputfiles[8]) %>%
   rename(age = Age)
 
 international_immigration = read_csv(inputfiles[5]) %>%
@@ -50,7 +50,7 @@ international_immigration = read_csv(inputfiles[5]) %>%
     international_immigrants = immigration_count
   )
 
-international_emigration = read_csv(inputfiles[6]) %>%
+international_emigration = read_csv(inputfiles[7]) %>%
   transmute(
     year = Year,
     eth_code,
@@ -61,7 +61,7 @@ international_emigration = read_csv(inputfiles[6]) %>%
 
 
 #Initialise the 2021 starting population once
-bham_eth_pop = read_rds(inputfiles[8])
+bham_eth_pop = read_rds(inputfiles[9])
 
 start_population = bham_eth_pop %>%
   transmute(
@@ -418,7 +418,7 @@ for (current_year in 2021:2046) {
   start_population = end_population
 }
 
-
+#===============================================================
 
 
 full_population_projection =
@@ -434,6 +434,8 @@ full_population_projection %>%
   
 
 
+
+#===========================================================================
 full_component_projection =
   bind_rows(component_projection_list)
 
@@ -479,6 +481,10 @@ annual_components = full_component_projection %>%
 
 
 
+CCM_result_list = list(full_component_projection, full_population_projection)
+
+saveRDS(CCM_result_list, file = "data/processed/CCM_result_list.rds")
+
 #=========================================================================
 #load the ons population projection 
 snpp2022 = read_csv("data/2022 SNPP Population persons.csv")
@@ -511,7 +517,8 @@ snpp2022 %>%
           select(year, series,count)) %>% 
   ggplot(aes(x=year,y=count,colour= series, group=series))+
   geom_line()+
-  scale_y_continuous(limits = c(1100000,1300000))+
-  theme_bcc(base_size = 11)
+  scale_y_continuous(limits = c(1100000,1350000))+
+  theme_bcc(base_size = 11)+
+  theme(axis)
 
 

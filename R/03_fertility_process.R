@@ -842,24 +842,24 @@ ons_tfr_trajectory = tibble( Year = 2021:2061) %>%
     ons_tfr = case_when(
       
       # Retain Observed baseline TFR sat at 1.40 
-      Year <= 2024 ~ 1.40,
+      Year <= 2024 ~ 1.66,
       
       # Gradual decline from 1.40 in 2024 to 1.38 in 2029
       Year <= 2029 ~ approx(
         x = c(2024, 2029),
-        y = c(1.40, 1.38),
+        y = c(1.66, 1.55),
         xout = Year
       )$y,
       
       # Gradual increase from 1.38 in 2029 to 1.42 in 2049
       Year <= 2049 ~ approx(
         x = c(2029, 2049),
-        y = c(1.38, 1.42),
+        y = c(1.55, 1.59),
         xout = Year
       )$y,
       
       # Hold the long-term assumption constant
-      TRUE ~ 1.42
+      TRUE ~ 1.59
     ),
     
     tfr_scaling_factor = case_when(

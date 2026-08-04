@@ -139,7 +139,7 @@ processed_all_flag4_2013_2022 %>%
 
 
 long_run_shares = processed_all_flag4_2013_2022  %>%
-  filter(XYEAR >= 2020, XYEAR <= 2022) %>%
+  filter(XYEAR >= 2019, XYEAR <= 2022) %>%
   group_by(eth_code) %>%
   summarise(
     redistributed_count = sum(redistributed_count),
@@ -198,3 +198,39 @@ projected_ethnic_shares_final %>%
     colour = "Ethnic group"
   ) +
   theme_bcc()
+
+#---------------------------------------------------
+#for now without further newer flag 4 i will hold 
+#every future year constant at 2022 level
+
+projected_ethnic_shares_constant = processed_all_flag4_2013_2022  %>%
+  filter(XYEAR ==2022) %>% 
+  select(-XYEAR) %>% 
+  crossing(year = 2022:2061) %>% 
+  select(eth_code, year, ethnic_shares) %>% 
+  rbind(processed_all_flag4_2013_2022  %>%
+          filter(XYEAR ==2021) %>% 
+          select(eth_code, year = XYEAR, ethnic_shares)) %>% 
+  arrange(eth_code, year)
+
+
+
+flag_4_immigration_shares =
+  projected_ethnic_shares_final %>%
+  transmute(
+    eth_code,
+    year,
+    ethnic_shares = projected_share
+  ) %>%
+  arrange(eth_code, year)
+
+
+
+write_rds(flag_4_immigration_shares, "data/processed/061a_immigration_shares.rds")
+
+
+
+
+
+
+

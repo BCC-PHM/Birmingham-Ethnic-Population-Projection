@@ -192,6 +192,63 @@ Rees_internal_in_prop = Rees_internal_in_shares %>%
   mutate(prop = count/sum(count)*100) %>% 
   ungroup()
 
+
+#---------------------------------------------
+# #👍
+# ONS_custom_migration_indicator = read_csv("data/migration/ONS_custom_migration_indicator.csv")
+# 
+# 
+# ONS_custom_internal_in_prop = ONS_custom_migration_indicator %>% 
+#   filter(`Lower tier local authorities` == "Birmingham") %>% 
+#   filter(`Migrant indicator (5 categories) Code` == 2) %>% 
+#   mutate(eth_code = case_when( # White British & Irish 
+#            `Ethnic group (20 categories)` %in% c("White: English, Welsh, Scottish, Northern Irish or British", 
+#                                  "White: Irish", 
+#                                  "White: Gypsy or Irish Traveller", 
+#                                  "White: Roma") ~ "WBI",
+#          
+#          # White Other 
+#          `Ethnic group (20 categories)` == "White: Other White" ~ "WHO",
+#          
+#          # Mixed 
+#          `Ethnic group (20 categories)`%in% c("Mixed or Multiple ethnic groups: White and Black Caribbean",
+#                                "Mixed or Multiple ethnic groups: White and Black African",
+#                                "Mixed or Multiple ethnic groups: White and Asian",
+#                                "Mixed or Multiple ethnic groups: Other Mixed or Multiple ethnic groups") ~ "MIX",
+#          
+#          # Asian, Asian British or Asian Welsh 
+#         `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Indian" ~ "IND",
+#         `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Pakistani" ~ "PAK",
+#         `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Bangladeshi" ~ "BAN",
+#         `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Chinese" ~ "CHI",
+#         `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Other Asian" ~ "OAS",
+#          
+#          # Black, Black British, Black Welsh, Caribbean or African 
+#         `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: African" ~ "BLA",
+#         `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: Caribbean" ~ "BLC",
+#         `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: Other Black" ~ "OBL",
+#          
+#          # Other Ethnic Group 
+#         `Ethnic group (20 categories)` %in% c("Other ethnic group: Arab",
+#                                "Other ethnic group: Any other ethnic group") ~ "OTH",
+#          
+#          # Catch-all for top-level categories (e.g., "Total: All usual residents", "White") and NAs
+#          TRUE ~ NA_character_
+#   )) %>% 
+#   group_by(eth_code) %>% 
+#   summarise(count = sum(Observation),
+#             .groups = "drop") %>% 
+#   filter(!is.na(eth_code)) %>%
+#   left_join(broad_group_map,
+#             by = "eth_code") %>% 
+#   group_by(ethnic_group) %>% 
+#   mutate(prop = count/sum(count)) %>% 
+#   ungroup()
+# 
+# #👍
+
+
+
 #----------------------------------------
 #birmingham out-ethnic-share
 Rees_internal_out_prop = Rees_internal_out_shares %>% 
@@ -238,6 +295,57 @@ Rees_international_in_RUK_prop = Immig_2011_2012_LEEDS1 %>%
   mutate(prop = count/sum(count)*100) %>% 
   ungroup()
 
+
+# #👍
+# ONS_custom_international_in_prop = ONS_custom_migration_indicator %>% 
+#   filter(`Lower tier local authorities` == "Birmingham") %>% 
+#   filter(`Migrant indicator (5 categories) Code` == 3) %>% 
+#   mutate(eth_code = case_when( # White British & Irish 
+#     `Ethnic group (20 categories)` %in% c("White: English, Welsh, Scottish, Northern Irish or British", 
+#                                           "White: Irish", 
+#                                           "White: Gypsy or Irish Traveller", 
+#                                           "White: Roma") ~ "WBI",
+#     
+#     # White Other 
+#     `Ethnic group (20 categories)` == "White: Other White" ~ "WHO",
+#     
+#     # Mixed 
+#     `Ethnic group (20 categories)`%in% c("Mixed or Multiple ethnic groups: White and Black Caribbean",
+#                                          "Mixed or Multiple ethnic groups: White and Black African",
+#                                          "Mixed or Multiple ethnic groups: White and Asian",
+#                                          "Mixed or Multiple ethnic groups: Other Mixed or Multiple ethnic groups") ~ "MIX",
+#     
+#     # Asian, Asian British or Asian Welsh 
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Indian" ~ "IND",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Pakistani" ~ "PAK",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Bangladeshi" ~ "BAN",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Chinese" ~ "CHI",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Other Asian" ~ "OAS",
+#     
+#     # Black, Black British, Black Welsh, Caribbean or African 
+#     `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: African" ~ "BLA",
+#     `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: Caribbean" ~ "BLC",
+#     `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: Other Black" ~ "OBL",
+#     
+#     # Other Ethnic Group 
+#     `Ethnic group (20 categories)` %in% c("Other ethnic group: Arab",
+#                                           "Other ethnic group: Any other ethnic group") ~ "OTH",
+#     
+#     # Catch-all for top-level categories (e.g., "Total: All usual residents", "White") and NAs
+#     TRUE ~ NA_character_
+#   )) %>% 
+#   group_by(eth_code) %>% 
+#   summarise(count = sum(Observation),
+#             .groups = "drop") %>% 
+#   filter(!is.na(eth_code)) %>%
+#   left_join(broad_group_map,
+#             by = "eth_code") %>% 
+#   group_by(ethnic_group) %>% 
+#   mutate(
+#     prop = count/sum(count)) %>% 
+#   ungroup()
+
+#👍
 #----------------------------------------
 #Birmingham immigration ethnic share
 
@@ -268,16 +376,16 @@ Rees_international_in_bham_prop = Immig_2011_2012_LEEDS1 %>%
 # ============================================================
 internal_n_international_in_bham = Rees_internal_in_prop %>%
   left_join(Rees_international_in_bham_prop %>% select(eth_code,prop),
-            by = "eth_code") %>% 
-  rename(In_prop =prop.x, Int_in_prop = prop.y) %>% 
+            by = "eth_code") %>%
+  rename(In_prop =prop.x, Int_in_prop = prop.y) %>%
   left_join(
     internal_n_international_in_bham,
     by = "ethnic_group"
-  ) %>% 
+  ) %>%
   mutate(
     IN_B   = IN_B * In_prop/100,
     INt_B = INt_B * Int_in_prop/100
-  ) %>% 
+  ) %>%
   select(eth_code, ethnic_group,  In_prop, Int_in_prop, IN_B, INt_B) %>%
   mutate(
     eth_code = factor(eth_code,
@@ -287,6 +395,36 @@ internal_n_international_in_bham = Rees_internal_in_prop %>%
   arrange(eth_code)
 
 # write_rds(internal_n_international_in_bham, "data/processed/Birmingham_international_immigration_ethnic_profile.rds")
+#👍
+# 
+# ONS_internal_n_international_in_bham = ONS_custom_internal_in_prop %>% 
+#   left_join(ONS_custom_international_in_prop %>% select(eth_code,prop),
+#             by = "eth_code") %>% 
+#   rename(In_prop =prop.x, Int_in_prop = prop.y) %>% 
+#   left_join(
+#     internal_n_international_in_bham,
+#     by = "ethnic_group"
+#   ) %>% 
+#   mutate(
+#     IN_B   = IN_B * In_prop,
+#     INt_B = INt_B * Int_in_prop
+#   ) %>% 
+#   select(eth_code, ethnic_group,  In_prop, Int_in_prop, IN_B, INt_B) %>%
+#   mutate(
+#     eth_code = factor(eth_code,
+#                       levels = c("WBI","WHO","MIX","IND","PAK","BAN",
+#                                  "CHI","OAS","BLA","BLC","OBL","OTH"))
+#   ) %>%
+#   arrange(eth_code)
+#   
+# #👍
+# 
+# #add this to minimise code changes below
+# internal_n_international_in_bham = ONS_internal_n_international_in_bham   
+
+
+#--------------------------------------------------------------------------
+
 
 internal_out_bham = Rees_internal_out_prop %>%
   left_join(
@@ -304,17 +442,17 @@ internal_out_bham = Rees_internal_out_prop %>%
   ) %>%
   arrange(eth_code)
 
-# write_rds(internal_out_bham, "data/processed/Birmingham_internal_out_ethnic_profile.rds")
+write_rds(internal_out_bham, "data/processed/Birmingham_internal_out_ethnic_profile.rds")
 
 
-international_in_RUK = Rees_international_in_RUK_prop %>% 
+international_in_RUK = Rees_international_in_RUK_prop %>%
   left_join(
     international_in_RUK,
     by = "ethnic_group"
-  ) %>% 
+  ) %>%
   mutate(
     INt_RUK   = INt_RUK* prop/100
-  ) %>% 
+  ) %>%
   select(eth_code, ethnic_group, prop, INt_RUK) %>%
   mutate(
     eth_code = factor(eth_code,
@@ -324,6 +462,75 @@ international_in_RUK = Rees_international_in_RUK_prop %>%
   arrange(eth_code)
 
 
+
+#👍
+# 
+# 
+# ONS_international_in_RUK =  ONS_custom_migration_indicator %>% 
+#   filter(`Lower tier local authorities` != "Birmingham") %>% 
+#   filter(`Migrant indicator (5 categories) Code` == 3) %>% 
+#   mutate(eth_code = case_when( # White British & Irish 
+#     `Ethnic group (20 categories)` %in% c("White: English, Welsh, Scottish, Northern Irish or British", 
+#                                           "White: Irish", 
+#                                           "White: Gypsy or Irish Traveller", 
+#                                           "White: Roma") ~ "WBI",
+#     
+#     # White Other 
+#     `Ethnic group (20 categories)` == "White: Other White" ~ "WHO",
+#     
+#     # Mixed 
+#     `Ethnic group (20 categories)`%in% c("Mixed or Multiple ethnic groups: White and Black Caribbean",
+#                                          "Mixed or Multiple ethnic groups: White and Black African",
+#                                          "Mixed or Multiple ethnic groups: White and Asian",
+#                                          "Mixed or Multiple ethnic groups: Other Mixed or Multiple ethnic groups") ~ "MIX",
+#     
+#     # Asian, Asian British or Asian Welsh 
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Indian" ~ "IND",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Pakistani" ~ "PAK",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Bangladeshi" ~ "BAN",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Chinese" ~ "CHI",
+#     `Ethnic group (20 categories)` == "Asian, Asian British or Asian Welsh: Other Asian" ~ "OAS",
+#     
+#     # Black, Black British, Black Welsh, Caribbean or African 
+#     `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: African" ~ "BLA",
+#     `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: Caribbean" ~ "BLC",
+#     `Ethnic group (20 categories)` == "Black, Black British, Black Welsh, Caribbean or African: Other Black" ~ "OBL",
+#     
+#     # Other Ethnic Group 
+#     `Ethnic group (20 categories)` %in% c("Other ethnic group: Arab",
+#                                           "Other ethnic group: Any other ethnic group") ~ "OTH",
+#     
+#     # Catch-all for top-level categories (e.g., "Total: All usual residents", "White") and NAs
+#     TRUE ~ NA_character_
+#   )) %>% 
+#   group_by(eth_code) %>% 
+#   summarise(count = sum(Observation),
+#             .groups = "drop") %>% 
+#   filter(!is.na(eth_code)) %>%
+#   left_join(broad_group_map,
+#             by = "eth_code") %>% 
+#   group_by(ethnic_group) %>% 
+#   mutate(
+#     prop = count/sum(count)) %>% 
+#   ungroup() %>% 
+#   left_join(
+#     international_in_RUK,
+#     by = "ethnic_group"
+#   ) %>% 
+#   mutate(
+#     INt_RUK   = INt_RUK* prop
+#   ) %>% 
+#   select(eth_code, ethnic_group, prop, INt_RUK) %>%
+#   mutate(
+#     eth_code = factor(eth_code,
+#                       levels = c("WBI","WHO","MIX","IND","PAK","BAN",
+#                                  "CHI","OAS","BLA","BLC","OBL","OTH"))
+#   ) %>%
+#   arrange(eth_code)
+# 
+# #👍
+# #add this to minimise code changes below
+# international_in_RUK = ONS_international_in_RUK   
 
 
 #==========================================================================================
@@ -900,27 +1107,26 @@ write_csv(migration_ethagesex_projected, "data/processed/05_Birmingham_internal_
 #   theme(legend.position = "none")
 
 # in — the composition inflation
-inflow_check_2022 =
-  migration_ethagesex_projected %>%
-  filter(year == 2022) %>%
-  left_join(
-    X08_RUK_internal_in_denominator %>%
-      filter(year == 2022) %>%
-      select(year, eth_code, sex, Age, ruk_ethnic_population),
-    by = c("year","eth_code","sex","Age"),
-    relationship = "many-to-one") %>%
-  mutate(reconstructed_inflow = in_rate_as * ruk_ethnic_population) %>%
-  group_by(year, sex, Age) %>%
-  summarise(reconstructed_inflow = sum(reconstructed_inflow, na.rm = TRUE),
-            .groups = "drop") %>%
-  left_join(
-    age_sex_bham_migration_series %>%
-      filter(year == 2022) %>%
-      select(year, sex, Age, observed_inflow = in_count),
-    by = c("year","sex","Age"))
-
-inflow_check_2022 %>% summarise(model = sum(reconstructed_inflow),
-                                obs   = sum(observed_inflow),
-                                ratio = model/obs)
-
+# inflow_check_2022 =
+#   migration_ethagesex_projected %>%
+#   filter(year == 2022) %>%
+#   left_join(
+#     X08_RUK_internal_in_denominator %>%
+#       filter(year == 2022) %>%
+#       select(year, eth_code, sex, Age, ruk_ethnic_population),
+#     by = c("year","eth_code","sex","Age"),
+#     relationship = "many-to-one") %>%
+#   mutate(reconstructed_inflow = in_rate_as * ruk_ethnic_population) %>%
+#   group_by(year, sex, Age) %>%
+#   summarise(reconstructed_inflow = sum(reconstructed_inflow, na.rm = TRUE),
+#             .groups = "drop") %>%
+#   left_join(
+#     age_sex_bham_migration_series %>%
+#       filter(year == 2022) %>%
+#       select(year, sex, Age, observed_inflow = in_count),
+#     by = c("year","sex","Age"))
+# 
+# inflow_check_2022 %>% summarise(model = sum(reconstructed_inflow),
+#                                 obs   = sum(observed_inflow),
+#                                 ratio = model/obs)
 

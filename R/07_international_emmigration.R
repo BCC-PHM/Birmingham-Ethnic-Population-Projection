@@ -33,6 +33,7 @@ nonbrit_prop = brit_nobrit_prop %>% pull(nonbrit_prop)
 
 # ============================================================
 # Birmingham international immigration ethnic profile for non brit
+# alternative using flag4 ⭐
 # Birmingham internal out migration ethnic profile for brit
 # ============================================================
 internal_n_international_in_bham = read_rds("data/processed/Birmingham_international_immigration_ethnic_profile.rds")
@@ -48,6 +49,17 @@ bham_immigration_ethnic_share  = internal_n_international_in_bham %>%
       sum(census_immigration_count, na.rm = TRUE)
   ) %>%
   arrange(eth_code)
+
+
+
+#-------------fag4 for non brit-------------------#
+flag_4_immigration_shares =
+  read_rds("data/processed/061a_immigration_shares.rds") %>%
+  transmute(
+    Year = as.integer(year),
+    eth_code = as.character(eth_code),
+    ethnic_share = ethnic_shares
+  )
 
 
 
@@ -152,15 +164,17 @@ ons_bham_emmigration_long_0_100_nonbrit = ons_bham_emmigration_long_0_100 %>%
 # brit and non brit corresponding ethnic share
 # ============================================================
 
-bham_international_emmigration_brit = ons_bham_emmigration_long_0_100_brit %>%
+bham_international_emmigration_brit =   ons_bham_emmigration_long_0_100_brit %>%
   cross_join(
-    bham_internal_out_share%>%
+    bham_internal_out_share %>%
       select(
         eth_code,
         ethnic_share
-      )) %>%
+      )
+  ) %>%
   mutate(
-    emmigration_count = Count * ethnic_share) %>% 
+    emmigration_count = Count * ethnic_share
+  ) %>%
   select(
     Year,
     eth_code,
@@ -168,25 +182,27 @@ bham_international_emmigration_brit = ons_bham_emmigration_long_0_100_brit %>%
     Age,
     ethnic_share,
     Count,
-    emmigration_count) %>%
+    emmigration_count
+  ) %>%
   arrange(
     Year,
     eth_code,
     sex,
-    Age )
+    Age
+  )
 
 
 
-
-bham_international_emmigration_nonbrit = ons_bham_emmigration_long_0_100_nonbrit %>%
-  cross_join(
-    bham_immigration_ethnic_share%>%
-      select(
-        eth_code,
-        ethnic_share
-      )) %>%
+bham_international_emmigration_nonbrit =
+  ons_bham_emmigration_long_0_100_nonbrit %>%
+  left_join(
+    flag_4_immigration_shares,
+    by = "Year",
+    relationship = "many-to-many"
+  ) %>%
   mutate(
-    emmigration_count = Count * ethnic_share) %>% 
+    emmigration_count = Count * ethnic_share
+  ) %>%
   select(
     Year,
     eth_code,
@@ -194,12 +210,14 @@ bham_international_emmigration_nonbrit = ons_bham_emmigration_long_0_100_nonbrit
     Age,
     ethnic_share,
     Count,
-    emmigration_count) %>%
+    emmigration_count
+  ) %>%
   arrange(
     Year,
     eth_code,
     sex,
-    Age )
+    Age
+  )
 
 
 
@@ -217,15 +235,16 @@ share_table_brit = bham_international_emmigration_brit %>%
 
 
 
-share_table_nonbrit = bham_international_emmigration_nonbrit %>% 
-  filter(Year == "2023") %>% 
-  mutate(all_out = sum(emmigration_count)) %>% 
-  group_by(sex,Age,ethnic_share) %>% 
-  mutate(share = emmigration_count/all_out) %>% 
-  ungroup() %>%
-  select(eth_code, sex, Age, ethnic_share, share)
-
-
+share_table_nonbrit =   ons_bham_emmigration_long_0_100_nonbrit %>%
+  filter(Year == 2023) %>%
+  mutate(
+    age_sex_share = Count / sum(Count, na.rm = TRUE)
+  ) %>%
+  select(
+    sex,
+    Age,
+    age_sex_share
+  )
 
 # ============================================================
 #the birmingham 202021 202122 migration out
@@ -259,13 +278,35 @@ backfill_2021_22_brit = share_table_brit %>%
     Age )
 
 
-backfill_2021_22_nonbrit = share_table_nonbrit %>% 
-  cross_join(tibble(Year = 2021:2022)) %>% 
+backfill_2021_22_nonbrit =
+  share_table_nonbrit %>%
+  cross_join(tibble(Year = 2021:2022)) %>%
+  left_join(
+    flag_4_immigration_shares,
+    by = "Year",
+    relationship = "many-to-many"
+  ) %>%
   mutate(
     Count = NA_real_,
-    emmigration_count = ifelse(Year == 2021, share*bham_outflow_2021_nonbrit, share*bham_outflow_2022_nonbrit)
-  ) %>% 
-  select(Year, eth_code, sex, Age, ethnic_share, Count, emmigration_count) %>% 
+    
+    emmigration_count =
+      age_sex_share *
+      ethnic_share *
+      if_else(
+        Year == 2021,
+        bham_outflow_2021_nonbrit,
+        bham_outflow_2022_nonbrit
+      )
+  ) %>%
+  select(
+    Year,
+    eth_code,
+    sex,
+    Age,
+    ethnic_share,
+    Count,
+    emmigration_count
+  ) %>%
   arrange(
     Year,
     eth_code,
@@ -291,16 +332,34 @@ extension_2048_61_brit = bham_international_emmigration_brit %>%
 
 
 
-extension_2048_61_nonbrit = bham_international_emmigration_nonbrit %>%
+extension_2048_61_nonbrit =
+  ons_bham_emmigration_long_0_100_nonbrit %>%
   filter(Year == 2047) %>%
   select(-Year) %>%
   cross_join(tibble(Year = 2048:2061)) %>%
-  select(Year, eth_code, sex, Age, ethnic_share, Count, emmigration_count) %>% 
+  left_join(
+    flag_4_immigration_shares,
+    by = "Year",
+    relationship = "many-to-many"
+  ) %>%
+  mutate(
+    emmigration_count = Count * ethnic_share
+  ) %>%
+  select(
+    Year,
+    eth_code,
+    sex,
+    Age,
+    ethnic_share,
+    Count,
+    emmigration_count
+  ) %>%
   arrange(
     Year,
     eth_code,
     sex,
-    Age )
+    Age
+  )
 
 
 
@@ -365,6 +424,37 @@ bham_international_emmigration_full %>%
 
 
 
+emigration_check =
+  ons_bham_emmigration_long_0_100 %>%
+  group_by(Year) %>%
+  summarise(
+    original_total = sum(Count),
+    .groups = "drop"
+  ) %>%
+  left_join(
+    bham_international_emmigration_brit %>%
+      group_by(Year) %>%
+      summarise(
+        british_total = sum(emmigration_count),
+        .groups = "drop"
+      ),
+    by = "Year"
+  ) %>%
+  left_join(
+    bham_international_emmigration_nonbrit %>%
+      group_by(Year) %>%
+      summarise(
+        nonbritish_total = sum(emmigration_count),
+        .groups = "drop"
+      ),
+    by = "Year"
+  ) %>%
+  mutate(
+    reconstructed_total =
+      british_total + nonbritish_total,
+    
+    difference =
+      reconstructed_total - original_total
+  )
 
-
-
+emigration_check

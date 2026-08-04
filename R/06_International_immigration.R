@@ -205,16 +205,43 @@ backfill_2021_22 = mye_inflow_totals %>%
 # Extend 2048–2061: hold the 2047 schedule constant
 # (SNPP flows flat from 2026; continuing ONS's own assumption)
 # ============================================================
-extension_2048_61 = bham_international_immigration %>%
+extension_2048_61 =  ons_bham_immigration_long_0_100 %>%
   filter(Year == 2047) %>%
-  select(-Year) %>%
-  cross_join(tibble(Year = 2048:2061)) %>%
-  select(Year, eth_code, sex, Age, ethnic_share, Count, immigration_count) %>% 
+  select(
+    sex,
+    Age,
+    Count
+  ) %>%
+  crossing(Year = 2048:2061) %>%
+  left_join(
+    flag4_immigration_share %>%
+      filter(year %in% 2048:2061) %>%
+      select(
+        Year = year,
+        eth_code,
+        ethnic_share
+      ),
+    by = "Year",
+    relationship = "many-to-many"
+  ) %>%
+  mutate(
+    immigration_count = Count * ethnic_share
+  ) %>%
+  select(
+    Year,
+    eth_code,
+    sex,
+    Age,
+    ethnic_share,
+    Count,
+    immigration_count
+  ) %>%
   arrange(
     Year,
     eth_code,
     sex,
-    Age )
+    Age
+  )
 
 # ============================================================
 # Assemble full 2021–2061 immigration array
