@@ -1,0 +1,153 @@
+---
+title: "Birmingham Ethnic Population Projection"
+author: "Chung Au-Yeung"
+date: today
+editor: visual
+
+
+server: shiny
+
+execute:
+  echo: false
+  message: false
+  warning: false
+  fig-width: 10
+  fig-height: 8
+
+format:
+  html:
+    embed-resources: false
+    toc: true
+    toc-location: left
+    number-sections: true
+---
+
+```{r setup}
+#| context: setup
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(readr)
+library(readxl)
+library(bslib)
+library(bcctheme)
+library(scales)
+library(patchwork)
+```
+
+```{r read data and function}
+#| echo: false
+#===========================================================
+# just handy function adjusting ggsave
+pixel_2_in = function(width,
+                      height){
+  width_in = width/96
+  height_in = height/96
+  
+  result = c(width_in,height_in)
+  return(result)
+}
+
+#============================================================
+
+CCM_result_list = readRDS("CCM_result_list.rds")
+
+full_component_projection = CCM_result_list[[1]]
+full_population_projection = CCM_result_list[[2]]
+```
+
+## Age profile in Birmingham
+
+Use the controls to explore the projected population age structure by year and ethnic group.
+
+```{r}
+#| label: pyramid user interface
+
+htmltools::tags$style(htmltools::HTML("
+  .card { overflow: visible !important; }
+  .card-body { overflow: visible !important; }
+  .selectize-dropdown { z-index: 2000 !important; }
+  .recalculating { opacity: 1 !important; }
+"))
+bslib::page_fillable(
+  padding = 8,
+  bslib::card(
+
+   htmltools::div(
+      style = "position: relative; z-index: 1050; padding: 8px 12px 0 12px;",
+  
+    shiny::selectInput(
+      "select_ethnic",
+      "Selected ethnic group",
+      choices = c( "White British & Irish"="WBI", "White Other"="WHO",
+                   "Mixed"="MIX",
+                   "Indian"="IND", "Pakistani"="PAK", "Bangladeshi"="BAN", 
+                   "Chinese"="CHI", "Other Asian"="OAS",
+                   "Black African"="BLA", "Black Caribbean"="BLC", 
+                   "Other Black"="OBL",
+                   "Other Ethnic Group"="OTH"),
+      selected = "WBI",
+      multiple = FALSE
+    )),
+  
+    bslib::card_body(
+    fillable = FALSE,
+    shiny::plotOutput("pyramid_plot", height = "700px")
+  ),
+    
+  bslib::card_footer(
+    shiny::sliderInput(
+    "slider_year",
+    "Year",
+    min=as.integer(2022),
+    max = as.integer(2047),
+    value=as.integer(2022),
+    step = 1,
+    sep="",
+    width = "100%",
+    animate = shiny::animationOptions(interval = 800)
+   )
+  )
+)
+)
+
+```
+
+```{r}
+#| context: data
+ pyramid_data = full_population_projection %>% 
+    mutate(age = ifelse(age>=90, "90+",as.character(age)),
+           age = factor(age, levels=c(as.character(0:89), "90+")),
+           sex = factor(sex, levels=c("Male", "Female"))) %>% 
+    group_by(year,eth_code,sex,age) %>%
+    summarise(population = sum(population),
+              .groups = "drop") %>% 
+    mutate(population = ifelse(sex == "Male", population*-1, population))
+```
+
+```{r}
+#| context: server
+
+output$pyramid_plot = shiny::renderPlot({
+  pyramid_data%>% 
+    filter(eth_code == input$select_ethnic,
+           year     == input$slider_year) %>% 
+    ggplot(aes(y=age, x=population,fill=sex))+
+    geom_col()+
+    geom_step( data = pyramid_data %>% 
+                 filter(eth_code == input$select_ethnic, year == 2022), 
+               aes(y=age, x=population,group=sex),
+               colour = "black", linewidth = 0.6,
+               direction = "mid", orientation = "y")+
+    scale_x_continuous(
+      labels = function(x) scales::comma(abs(x)))+
+    scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+    scale_fill_bcc(palette = "multi")+
+    ggtitle("Projected population by single year of age and sex and ethnicity \nfor Birmingham, 2022 to 2047")+
+    theme_bcc(base_size = 12,
+              gridline_y = F)+
+    theme(legend.position = "bottom")
+})
+
+```

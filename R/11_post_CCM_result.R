@@ -35,34 +35,23 @@ annual_components = full_component_projection %>%
     births = sum(births, na.rm = TRUE),
     deaths = sum(total_deaths, na.rm = TRUE),
     
-    natural_change =
-      births - deaths,
+    natural_change =births - deaths,
     
-    internal_in =
-      sum(internal_in_migrants, na.rm = TRUE),
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
     
-    internal_out =
-      sum(internal_out_migrants, na.rm = TRUE),
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
     
-    net_internal =
-      internal_in - internal_out,
+    net_internal =internal_in - internal_out,
     
-    international_in =
-      sum(international_immigrants, na.rm = TRUE),
+    international_in =sum(international_immigrants, na.rm = TRUE),
     
-    international_out =
-      sum(international_emigrants, na.rm = TRUE),
+    international_out =sum(international_emigrants, na.rm = TRUE),
     
-    net_international =
-      international_in - international_out,
+    net_international =international_in - international_out,
     
-    projected_change =
-      natural_change +
-      net_internal +
-      net_international,
+    projected_change =natural_change + net_internal +net_international,
     
-    end_population =
-      sum(end_population, na.rm = TRUE),
+    end_population = sum(end_population, na.rm = TRUE),
     start_pop = end_population-projected_change,
     
     .groups = "drop"
@@ -74,34 +63,23 @@ annual_components_byeth = full_component_projection %>%
     births = sum(births, na.rm = TRUE),
     deaths = sum(total_deaths, na.rm = TRUE),
     
-    natural_change =
-      births - deaths,
+    natural_change =births - deaths,
     
-    internal_in =
-      sum(internal_in_migrants, na.rm = TRUE),
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
     
-    internal_out =
-      sum(internal_out_migrants, na.rm = TRUE),
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
     
-    net_internal =
-      internal_in - internal_out,
+    net_internal =internal_in - internal_out,
     
-    international_in =
-      sum(international_immigrants, na.rm = TRUE),
+    international_in =sum(international_immigrants, na.rm = TRUE),
     
-    international_out =
-      sum(international_emigrants, na.rm = TRUE),
+    international_out =sum(international_emigrants, na.rm = TRUE),
     
-    net_international =
-      international_in - international_out,
+    net_international =international_in - international_out,
     
-    projected_change =
-      natural_change +
-      net_internal +
-      net_international,
+    projected_change =natural_change + net_internal +net_international,
     
-    end_population =
-      sum(end_population, na.rm = TRUE),
+    end_population = sum(end_population, na.rm = TRUE),
     start_pop = end_population-projected_change,
     
     .groups = "drop"

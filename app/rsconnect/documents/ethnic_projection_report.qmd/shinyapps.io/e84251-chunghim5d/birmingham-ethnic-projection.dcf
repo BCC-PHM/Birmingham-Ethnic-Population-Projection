@@ -1,0 +1,13 @@
+name: birmingham-ethnic-projection
+title:
+username: e84251-chunghim5d
+account: e84251-chunghim5d
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 17667896
+bundleId: 12366193
+url: https://e84251-chunghim5d.shinyapps.io/birmingham-ethnic-projection/
+version: 1
+quarto_version: 1.6.39
+quarto_engines: knitr
+serverRender: FALSE
