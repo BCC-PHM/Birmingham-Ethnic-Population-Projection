@@ -1,0 +1,239 @@
+---
+title: "Ethnic Populaiton Projection for Birmingham"
+author: ""
+date: today
+format:
+  html: since we have to wait for sfnetwork to finish for the whole uk lets also do the 
+    toc: true
+    toc-location: left
+    number-sections: true
+    code-fold: true
+    embed-resources: true
+  pdf:
+    toc: true
+    number-sections: true
+    fig-pos: "H"
+  docx:
+    toc: true
+    number-sections: true
+execute:
+  echo: false
+  warning: false
+  message: false
+crossref:
+  tbl-title: "Table"
+  fig-title: "Figure"
+editor: 
+  markdown: 
+    wrap: 72
+---
+
+\newpage
+
+# Introduction
+
+Sub-national population projections disaggregated by ethnic group are valuable insights to inform local strategic planning, health service commissioning for local authorities. However, this type of projection is rare due to its complexity and data availability. The most developed national framework — NEWETHPOP [@rees2012ethnic; @wohland2015; @rees2017] — provides ethnicity-stratified projections for all local authorities in England and a fully documented methodology on bi-regional cohort-component model (CCM) with every components calculated in details. Birmingham has one of the youngest and most ethnically diverse populations in the UK and it is crucial to understand the compositional change of different ethnicity to anticipate the demand on public health services in the coming future.
+
+The purpose of this work is to employ NEWETHPOP as the primary methodological anchor to produce an ethnic population projections for Birmingham. The projections are intended to support short and long-term analyses and planning where changes in the size and age structure of ethnic populations are relevant.
+
+@sec-framework describes the overall model structure and @sec-projectionmodel presents the equations of the projection model. @sec-data displays all data sources used. @sec-mortality through @sec-od-enrichment provide detailed procedure of processing and calculating each demographic component including mortality, fertility, international immigration, international emigration, internal migration, the ethnic composition of immigration, and OD matrix enrichment. @sec-ruk documents construction of the Rest of the England and Wales (REW) exogenous reservoir. @sec-integration describes engine integration and planned validation. @sec-departures summaries methodological departures from Rees et al. (2012). @sec-limitations discusses limitations, and @sec-bayesian outlines the planned Bayesian probabilistic extension.
+
+\newpage
+
+# Model framework {#sec-framework}
+
+## Bi-regional structure
+
+This analysis employs the bi-regional cohort component model, treating Birmingham as the zone of interest and all other local authorities as a single compainion zone namely the Rest of England and Wales (REW). This follows the ETHPOP/NEWETHPOP bi-regional design closely, in which each zone of interest is projected against the REW rather than projecting every other individual local authority simultaneously [@rees2012wp1002]. Birmingham is projected fully through the cohort-component accounting steps described in @sec-accounting . However, REW is *not* obtained within the model through projecting every pair of zone of interest and the REW. Instead, REW population by age, sex and ethnic group is served as an exogenous source obtained and derived from the Office for National Statistics (ONS) Sub-national Population Projections (SNPP) variant data (**Documented choice**: see @sec-ruk). This design choice is justified because the authors does not have data for all other local authorities and it is beyond the scope of this project to also produce projections for other local authorities as well. Hence, the model is a simplified version of the bi-regional model being used in the ETHPOP/NEWETHPOP project.
+
+## Ethnic group classifications
+
+Ethnicity classifications has not been recorded consistently in UK official statistics over time. Within England and Wales, the census ethnic categories have changed across the 1991,2001,2011 and 2021 rounds, moving from 9 categories to 16 and 20 in 2021. This implies that ethnicity recording changes to reflect the shift and evolution of ethnic groups and population structure. Broad ethnic grouping such as White, Mixed, Black, Asian and Others are useful for general reporting but they can hide important demographic differences between groups especially fertility, mortality and migration patterns. Therefore, this project uses the 12 harmonised group introduced by NEWETHPOP: White British/Irish/Gypsy/Traveller (WBI), White Other (WHO), Mixed/Multiple Ethnic Groups (MIX), Indian (IND), Pakistani (PAK), Bangladeshi (BAN), Chinese (CHI), Other Asian (OAS), Black African (BLA), Black Caribbean (BLC), Other Black (OBL), and Other Ethnic Group (OTH). This classification provide sufficient demographic details while allowing ethnic group to be treated consistently in the projection model. The following @tbl-ethnic-groups shows the ethnicity mapping to the 12 harmonised groups from different data sources.
+
+| NewEthPop Code | NewEthPop Label       | Death Register Categories                                                                       | Census 2021 20 Categories                                                                                                                   | MSDS ethnicity coding |
+|----------------|-----------------------|-------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
+| WBI            | White British & Irish | British; Irish                                                                                  | White: English, Welsh, Scottish, Northern Irish or British; White: Irish; White: Gypsy or Irish Traveller; White: Roma                      | A, B                  |
+| WHO            | White Other           | Any other white background                                                                      | White: Other White                                                                                                                          | C                     |
+| MIX            | Mixed                 | White and Black Caribbean; White and Black African; White and Asian; Any other mixed background | Mixed or Multiple ethnic groups: White and Black Caribbean; White and Black African; White and Asian; Other Mixed or Multiple ethnic groups | D, E, F, G            |
+| IND            | Indian                | Indian                                                                                          | Asian: Indian                                                                                                                               | H                     |
+| PAK            | Pakistani             | Pakistani                                                                                       | Asian: Pakistani                                                                                                                            | J                     |
+| BAN            | Bangladeshi           | Bangladeshi                                                                                     | Asian: Bangladeshi                                                                                                                          | K                     |
+| CHI            | Chinese               | Chinese                                                                                         | Asian: Chinese                                                                                                                              | R                     |
+| OAS            | Other Asian           | Any other Asian background                                                                      | Asian: Other Asian                                                                                                                          | L                     |
+| BLA            | Black African         | African                                                                                         | Black: African                                                                                                                              | N                     |
+| BLC            | Black Caribbean       | Caribbean                                                                                       | Black: Caribbean                                                                                                                            | M                     |
+| OBL            | Other Black           | Any other Black background                                                                      | Black: Other Black                                                                                                                          | P                     |
+| OTH            | Other Ethnic Group    | Any other ethnic group                                                                          | Other ethnic group: Arab; Other ethnic group: Any other ethnic group                                                                        | S                     |
+
+: NewETHPOP ethnic group classification {#tbl-ethnic-groups}
+
+## Ages
+
+This project uses single year of age as the main age classification. This provides flexibility for reporting and also for further grouping into wider bands if needed. Given that the estimations of fertility, mortality and migration rates for every single year of age by ethnicity and sex can be unstable due to small numbers. The procedure of handling this issue is explanied in later section. The projected age range is between 0 and 100+ where ages above 100 years are grouped to 100+.
+
+## Projection horizon
+
+The projection is anchored to the 2021 Census population, which provides the base population by single year of age, sex and ethnic group. The reference date of this data is not the same as the 2021 mid-year estiamte reference point, the resulting total resident population shows only small differences. Therefore, it is directly used as the 2021 mid-year estimate. Annual projections are then generated from 2022 to 2047, with the first projected population representing the 2022 mid-year estimated resident population after accounting the components between 2021 and 2022.
+
+# The projection model {#sec-projectionmodel}
+
+The Birmingham ethnic population projection uses the cohort-component framework based on the approach employed in NEWETHPOP. Population change is modelled annually through six demographic components: births, deaths, internal in-migration, internal out-migration, international immigration and emigration. Since the full methodology is documented in the NEWETHPOP paper, only the key equations are displayed here. Intermediate derivations and the full set of underlying equations can be found in the original NEWETHPOP paper.
+
+\newpage
+
+# Data sources {#sec-data}
+
+\newpage
+
+# Mortality {#sec-mortality}
+
+## Overview
+
+## Data window and COVID exclusion
+
+## Empirical Bayes shrinkage
+
+## Graduation: ordinary Beers interpolation
+
+## Old-age extrapolation
+
+## Mortality improvement
+
+## Output
+
+\newpage
+
+# Fertility {#sec-fertility}
+
+## Overview
+
+## Data source and window
+
+## Curve fitting and ratio adjustment
+
+## External scaling
+
+## Projection to terminal year
+
+## Mother-to-child ethnic transfer matrix
+
+## Plausibility checks and open question
+
+## Output
+
+\newpage
+
+# International immigration {#sec-immigration}
+
+## Overview
+
+## Level
+
+## Ethnic profile
+
+## Age-sex schedule
+
+## Backfill and terminal extension
+
+## Output
+
+\newpage
+
+# International emigration {#sec-emigration}
+
+## Overview
+
+## Indirect method and nationality streams
+
+## Ethnic profiling of each stream
+
+## Scaling to national totals
+
+## Output
+
+\newpage
+
+# Internal migration {#sec-internal-migration}
+
+## Overview
+
+## Estimation stage: all-age out/in probabilities
+
+## Denominator asymmetry
+
+## Ethnic propensity
+
+## Age-sex schedule
+
+## Compositional inflation and indirect standardisation correction {#sec-composition-correction}
+
+## Re-levelling against ONS estimates
+
+## Output
+
+\newpage
+
+# Ethnic composition of international immigration: compositional projection {#sec-immigration-ethnicity}
+
+## Overview
+
+## Empirical crosswalk
+
+## Centred log-ratio (CLR) convergence structure
+
+## Policy-shock adjustments
+
+## Output
+
+\newpage
+
+# OD matrix enrichment {#sec-od-enrichment}
+
+## Overview
+
+## Complementary, not equivalent, to ODMG03EW
+
+## Identified shortfall
+
+## Recommended next step
+
+\newpage
+
+# Rest of England and Wales (RUK) denominator {#sec-ruk}
+
+## Overview
+
+## Approach
+
+## Post-SNPP horizon extension
+
+\newpage
+
+# Births component: base-year alignment {#sec-births}
+
+\newpage
+
+# Model integration and planned validation {#sec-integration}
+
+## Engine status
+
+## Planned validation
+
+\newpage
+
+# Summary of departures from Rees et al. (2012) {#sec-departures}
+
+\newpage
+
+# Limitations {#sec-limitations}
+
+\newpage
+
+# Planned Bayesian probabilistic extension {#sec-bayesian}
+
+\newpage
+
+# References {.unnumbered}
+
+::: {#refs}
+:::

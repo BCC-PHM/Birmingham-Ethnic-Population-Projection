@@ -883,18 +883,24 @@ fertility_projected_annual = stacked %>%
 
 
 
-
-fertility_projected_annual%>%
-  filter(Year == "2032") %>% 
+fertility_tfr_selected =
+  fertility_projected_annual %>%
+  filter(Year %in% c(2022, 2032, 2047)) %>%
   group_by(eth_code, Year) %>%
   summarise(
-    baseline_tfr = sum(fx, na.rm = TRUE),
+    tfr = sum(fx, na.rm = TRUE),
     .groups = "drop"
+  ) %>%
+  mutate(
+    Year = paste0("tfr_", Year)
+  ) %>%
+  pivot_wider(
+    names_from = Year,
+    values_from = tfr
   )
 
 
-
-
+fertility_tfr_selected
 
 
 
