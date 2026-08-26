@@ -99,5 +99,54 @@ write.csv(mixing_matrix_complete, "data/processed/04_birth_transition_matrix.csv
 #   summarise(total = round(sum(percentage), 6)) %>%
 #   filter(total != 1)
 
+bcctheme::bcc_pal("pink")(5)[5]
+
+mixing_matrix_complete = mixing_matrix_complete %>% 
+  mutate(percentage = round(percentage*100,1),
+         group = case_when(
+           percentage < 1  ~ "<1%",
+           percentage >= 1  & percentage < 25 ~ "1% - <25%",
+           percentage >= 25 & percentage < 50 ~ "25% - <50%",
+           percentage >= 50 & percentage < 80 ~ "50% - <80%",
+           percentage >= 80 ~ ">=80%"
+         ),
+         group = factor(group, levels = c("<1%", "1% - <25%", "25% - <50%", "50% - <80%", ">=80%")),
+         eth_code_mother = factor(eth_code_mother, levels = rev(c(
+           "WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))),
+         eth_code_baby = factor(eth_code_baby, levels = rev(c(
+           "WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))))
+
+
+ggplot(mixing_matrix_complete, aes(eth_code_baby,eth_code_mother, fill=group,label = paste0(percentage, "%")))+
+  geom_tile(color = "grey92")+
+  geom_text()+
+  scale_fill_manual(values = c("<1%" = "white",
+                               "1% - <25%"  = bcctheme::bcc_pal("purple")(5)[5],
+                               "25% - <50%" = bcctheme::bcc_pal("purple")(5)[4],
+                               "50% - <80%" = bcctheme::bcc_pal("purple")(5)[3],
+                               ">=80%" = bcctheme::bcc_pal("purple")(5)[2])) +
+  labs(x = "12 harmonised ethnic group of mother", y = "12 harmonised ethnic group of newborn", 
+       fill = "Percentage", 
+       title="Mother-to-child ethnic transfer matrix"
+      ) +
+  scale_x_discrete(expand=c(0,0)) +
+  scale_y_discrete(expand=c(0,0)) +
+  coord_fixed()+
+  theme_bcc(gridline_x = F,
+            gridline_y = F,
+            base_size = 11)+
+  theme(legend.title = element_text(size = 11,
+                                    color = bcc_cols("black")))
+
+
+
+
+
+
+
+
+
+
+
 
 

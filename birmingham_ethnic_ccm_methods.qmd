@@ -1,26 +1,31 @@
 ---
 title: "Ethnic Populaiton Projection for Birmingham"
-author: ""
+author: "Chung Au-Yeung"
+csl   : "csl/apa.csl"
+bibliography: "references.bib"
 date: today
 format:
-  html: since we have to wait for sfnetwork to finish for the whole uk lets also do the 
+  html:
+    include-in-header:
+      text: |
+        <style>
+        .csl-entry a {
+          word-break: break-all;
+          overflow-wrap: anywhere;
+        }
+        </style>
     toc: true
     toc-location: left
     number-sections: true
     code-fold: true
     embed-resources: true
-  pdf:
-    toc: true
-    number-sections: true
-    fig-pos: "H"
-  docx:
-    toc: true
-    number-sections: true
 execute:
   echo: false
   warning: false
   message: false
 crossref:
+  chapters: true
+  sec-prefix: "Section"
   tbl-title: "Table"
   fig-title: "Figure"
 editor: 
@@ -28,15 +33,53 @@ editor:
     wrap: 72
 ---
 
+```{r setup}
+#| context: setup
+#| warning: false
+#| message: false
+
+library(tidyverse)
+library(readr)
+library(readxl)
+library(bcctheme)
+library(scales)
+library(patchwork)
+library(here)
+library(gt)
+```
+
 \newpage
 
 # Introduction
 
-Sub-national population projections disaggregated by ethnic group are valuable insights to inform local strategic planning, health service commissioning for local authorities. However, this type of projection is rare due to its complexity and data availability. The most developed national framework — NEWETHPOP [@rees2012ethnic; @wohland2015; @rees2017] — provides ethnicity-stratified projections for all local authorities in England and a fully documented methodology on bi-regional cohort-component model (CCM) with every components calculated in details. Birmingham has one of the youngest and most ethnically diverse populations in the UK and it is crucial to understand the compositional change of different ethnicity to anticipate the demand on public health services in the coming future.
+Sub-national population projections disaggregated by ethnic group are
+valuable insights to inform local strategic planning, health service
+commissioning for local authorities. However, this type of projection is
+rare due to its complexity and data availability. A substantial body of
+work on ethnic population projection has been developed by researchers
+at the University of Leeds, starting with the bi-regional
+cohort-component framework set out by @wohland2010ethnic. It was then
+revised and extended through the NEWETHPOP project [@rees2015newethpop;
+@rees2017newethpop]. Birmingham has one of the youngest and most
+ethnically diverse populations in the UK and it is crucial to understand
+the compositional change of different ethnicity to anticipate the demand
+on public health services in the coming
 
-The purpose of this work is to employ NEWETHPOP as the primary methodological anchor to produce an ethnic population projections for Birmingham. The projections are intended to support short and long-term analyses and planning where changes in the size and age structure of ethnic populations are relevant.
+The purpose of this work is to employ the framework of
+@wohland2010ethnic as the primary methodological anchor to produce an
+ethnic population projections for Birmingham. The projections are
+intended to support short and long-term analyses and planning where
+changes in the size and age structure of ethnic populations are
+relevant.
 
-@sec-framework describes the overall model structure and @sec-projectionmodel presents the equations of the projection model. @sec-data displays all data sources used. @sec-mortality through @sec-od-enrichment provide detailed procedure of processing and calculating each demographic component including mortality, fertility, international immigration, international emigration, internal migration, the ethnic composition of immigration, and OD matrix enrichment. @sec-ruk documents construction of the Rest of the England and Wales (REW) exogenous reservoir. @sec-integration describes engine integration and planned validation. @sec-departures summaries methodological departures from Rees et al. (2012). @sec-limitations discusses limitations, and @sec-bayesian outlines the planned Bayesian probabilistic extension.
+@sec-framework describes the overall model specification and
+@sec-projectionmodel presents the equations of the projection model.
+@sec-data displays all data sources used. @sec-fertility through
+@sec-internal-migration provide detailed procedure of processing and
+calculating each probability being used in the model including
+mortality, fertility, international migration and internal migration.
+@sec-assumptions lists out a summary table of all assumptions being
+imposed for the projection.
 
 \newpage
 
@@ -44,14 +87,47 @@ The purpose of this work is to employ NEWETHPOP as the primary methodological an
 
 ## Bi-regional structure
 
-This analysis employs the bi-regional cohort component model, treating Birmingham as the zone of interest and all other local authorities as a single compainion zone namely the Rest of England and Wales (REW). This follows the ETHPOP/NEWETHPOP bi-regional design closely, in which each zone of interest is projected against the REW rather than projecting every other individual local authority simultaneously [@rees2012wp1002]. Birmingham is projected fully through the cohort-component accounting steps described in @sec-accounting . However, REW is *not* obtained within the model through projecting every pair of zone of interest and the REW. Instead, REW population by age, sex and ethnic group is served as an exogenous source obtained and derived from the Office for National Statistics (ONS) Sub-national Population Projections (SNPP) variant data (**Documented choice**: see @sec-ruk). This design choice is justified because the authors does not have data for all other local authorities and it is beyond the scope of this project to also produce projections for other local authorities as well. Hence, the model is a simplified version of the bi-regional model being used in the ETHPOP/NEWETHPOP project.
+This analysis employs the bi-regional cohort component model, treating
+Birmingham as the zone of interest and all other local authorities as a
+single compainion zone namely the Rest of England and Wales (REW). This
+follows the bi-regional design closely, in which each zone of interest
+is projected against the REW rather than projecting every other
+individual local authority simultaneously [@wohland2010ethnic].
+Birmingham is projected fully through the cohort-component accounting
+steps described in @sec-projectionmodel . However, REW is *not* obtained
+within the model through projecting every pair of zone of interest and
+the REW. Instead, REW population by age, sex and ethnic group is served
+as an exogenous source obtained and derived from the Office for National
+Statistics (ONS) Sub-national Population Projections (SNPP) variant data
+. This design choice is justified because the authors does not have data
+for all other local authorities and it is beyond the scope of this
+project to also produce projections for other local authorities as well.
+Hence, the model is a simplified version of the bi-regional model set
+out by @wohland2010ethnic.
 
 ## Ethnic group classifications
 
-Ethnicity classifications has not been recorded consistently in UK official statistics over time. Within England and Wales, the census ethnic categories have changed across the 1991,2001,2011 and 2021 rounds, moving from 9 categories to 16 and 20 in 2021. This implies that ethnicity recording changes to reflect the shift and evolution of ethnic groups and population structure. Broad ethnic grouping such as White, Mixed, Black, Asian and Others are useful for general reporting but they can hide important demographic differences between groups especially fertility, mortality and migration patterns. Therefore, this project uses the 12 harmonised group introduced by NEWETHPOP: White British/Irish/Gypsy/Traveller (WBI), White Other (WHO), Mixed/Multiple Ethnic Groups (MIX), Indian (IND), Pakistani (PAK), Bangladeshi (BAN), Chinese (CHI), Other Asian (OAS), Black African (BLA), Black Caribbean (BLC), Other Black (OBL), and Other Ethnic Group (OTH). This classification provide sufficient demographic details while allowing ethnic group to be treated consistently in the projection model. The following @tbl-ethnic-groups shows the ethnicity mapping to the 12 harmonised groups from different data sources.
+Ethnicity classifications has not been recorded consistently in UK
+official statistics over time. Within England and Wales, the census
+ethnic categories have changed across the 1991,2001,2011 and 2021
+rounds, moving from 9 categories to 16 and 20 in 2021. This implies that
+ethnicity recording changes to reflect the shift and evolution of ethnic
+groups and population structure. Broad ethnic grouping such as White,
+Mixed, Black, Asian and Others are useful for general reporting but they
+can hide important demographic differences between groups especially
+fertility, mortality and migration patterns. Therefore, this project
+uses the 12 harmonised ethnic groups adopted in the later NEWETHPOP
+project [@rees2017newethpop]: White British/Irish/Gypsy/Traveller (WBI),
+White Other (WHO), Mixed/Multiple Ethnic Groups (MIX), Indian (IND),
+Pakistani (PAK), Bangladeshi (BAN), Chinese (CHI), Other Asian (OAS),
+Black African (BLA), Black Caribbean (BLC), Other Black (OBL), and Other
+Ethnic Group (OTH). This classification provide sufficient demographic
+details while allowing ethnic group to be treated consistently in the
+projection model. The following @tbl-ethnic-groups shows the ethnicity
+mapping to the 12 harmonised groups from different data.
 
 | NewEthPop Code | NewEthPop Label       | Death Register Categories                                                                       | Census 2021 20 Categories                                                                                                                   | MSDS ethnicity coding |
-|----------------|-----------------------|-------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------|-----------------------|
+|---------------|---------------|---------------|---------------|---------------|
 | WBI            | White British & Irish | British; Irish                                                                                  | White: English, Welsh, Scottish, Northern Irish or British; White: Irish; White: Gypsy or Irish Traveller; White: Roma                      | A, B                  |
 | WHO            | White Other           | Any other white background                                                                      | White: Other White                                                                                                                          | C                     |
 | MIX            | Mixed                 | White and Black Caribbean; White and Black African; White and Asian; Any other mixed background | Mixed or Multiple ethnic groups: White and Black Caribbean; White and Black African; White and Asian; Other Mixed or Multiple ethnic groups | D, E, F, G            |
@@ -65,41 +141,283 @@ Ethnicity classifications has not been recorded consistently in UK official stat
 | OBL            | Other Black           | Any other Black background                                                                      | Black: Other Black                                                                                                                          | P                     |
 | OTH            | Other Ethnic Group    | Any other ethnic group                                                                          | Other ethnic group: Arab; Other ethnic group: Any other ethnic group                                                                        | S                     |
 
-: NewETHPOP ethnic group classification {#tbl-ethnic-groups}
+: NEWETHPOP ethnic group classification {#tbl-ethnic-groups}
 
 ## Ages
 
-This project uses single year of age as the main age classification. This provides flexibility for reporting and also for further grouping into wider bands if needed. Given that the estimations of fertility, mortality and migration rates for every single year of age by ethnicity and sex can be unstable due to small numbers. The procedure of handling this issue is explanied in later section. The projected age range is between 0 and 100+ where ages above 100 years are grouped to 100+.
+This project uses single year of age as the main age classification.
+This provides flexibility for reporting and also for further grouping
+into wider bands if needed. Given that the estimations of fertility,
+mortality and migration rates for every single year of age by ethnicity
+and sex can be unstable due to small numbers. The procedure of handling
+this issue is explained in later section. The projected age range is
+between 0 and 100+ where ages above 100 years are grouped to 100+.
 
 ## Projection horizon
 
-The projection is anchored to the 2021 Census population, which provides the base population by single year of age, sex and ethnic group. The reference date of this data is not the same as the 2021 mid-year estiamte reference point, the resulting total resident population shows only small differences. Therefore, it is directly used as the 2021 mid-year estimate. Annual projections are then generated from 2022 to 2047, with the first projected population representing the 2022 mid-year estimated resident population after accounting the components between 2021 and 2022.
+The projection is anchored to the 2021 Census population, which provides
+the base population by single year of age, sex and ethnic group. The
+reference date of this data is not the same as the 2021 mid-year
+estimate reference point, the resulting total resident population shows
+only small differences. Therefore, it is directly used as the 2021
+mid-year estimate. Annual projections are then generated from 2022 to
+2047, with the first projected population representing the 2022 mid-year
+estimated resident population after accounting the components between
+2021 and 2022.
 
 # The projection model {#sec-projectionmodel}
 
-The Birmingham ethnic population projection uses the cohort-component framework based on the approach employed in NEWETHPOP. Population change is modelled annually through six demographic components: births, deaths, internal in-migration, internal out-migration, international immigration and emigration. Since the full methodology is documented in the NEWETHPOP paper, only the key equations are displayed here. Intermediate derivations and the full set of underlying equations can be found in the original NEWETHPOP paper.
+The Birmingham ethnic population projection uses the cohort-component
+framework based on the approach employed by @wohland2010ethnic.
+Population change is modelled annually through six demographic
+components: births, deaths, internal in-migration, internal
+out-migration, international immigration and emigration. Since the full
+methodology is documented in that working paper, only the key equations
+are displayed here. Intermediate derivations and the full set of
+underlying equations can be found in the original paper.
+
+## Population accounting
+
+The population at the end of the interval for each ethnic group $e$, age
+$x$ and gender $s$ in zone $i$ is given by:
+
+$$
+P^{end,i}_{e,s,x,t}
+=
+P^{start,i}_{e,s,x,t}
+-
+D^{i}_{e,s,x,t}
+-
+E^{i}_{e,s,x,t}
+-
+M^{ir}_{e,s,x,t}
++
+M^{ri}_{e,s,x,t}
++
+I^{i}_{e,s,x,t}
+$$ {#eq-projection-accounting}
+
+the $P^{start,i}_{e,s,x,t}$ is the start population of zone $i$. From
+this population, deaths during the interval $D^{i}_{e,s,x,t}$, the
+surviving emigrants $E^{i}_{e,s,x,t}$ and the surviving internal
+out-migrants $M^{ir}_{e,s,x,t}$ from zone $i$ to the REW are
+substracted. Survivng internal-in migrants from the REW $r$ to zone $i$
+which is $M^{ri}_{e,s,x,t}$ and the international immigrants from the
+rest of the world to zone $i$ which is $I^{i}_{e,s,x,t}$ are then added
+to the equation to obtain the population at the end interval.
+
+@eq-projection-accounting provides the overall accounting framework of
+the projection. However, many of those flows cannot be observed directly
+for every age, sex, ethnic group and area. Therefore, these flows are
+derived by applying the relevant rates and probabilities to the
+population at risk. Except international migration, these components
+entered the model directly as flows which will be discussed in later
+sections. The estimation of other components are described in the
+following sections.
+
+## Births
+
+Following @wohland2010ethnic, births are calculated at the start of the
+interval so that newborn can enter the model immediately and processed
+with other components. Births are generated from the female population
+of reproductive age and therefore the **period-cohort** fertility rate
+for each ethnic group $e$ at reproductive age $x$ in zone $i$ is given
+as:
+
+$$
+f^{c,i}_{e,x,t}
+=
+0.5
+\left(
+f^{p,i}_{e,x,t}
++
+f^{p,i}_{e,x+1,t}
+\right)
+$$ {#eq-cohort-fertility}
+
+where the period-cohort fertility rate $f^{c,i}_{e,x,t}$ at age $x$ is
+the average of the period-age fertility rate $f^{p,i}_{e,x,t}$ at age
+$x$ and $f^{p,i}_{e,x+1,t}$ at $x+1$. The period-cohort fertility rates
+are then applied to the female population aged 15 to 49 to calculate
+births to mothers in each ethnic group $e$:
+
+$$
+B^{i}_{e,t}
+=
+\sum_{x=15}^{49}
+f^{c,i}_{e,x,t}
+P^{start,i}_{e,s,x,t},
+\qquad s = Female
+$$ {#eq-projected-births}
+
+where $P^{start,i}_{e,s,x,t}$ is the female population ($s=Female$) of
+ethnic group $e$ at maternal age $x$ at the start of the projection
+interval. However, the ethnic group of newborn may not be necessarily
+the same as mother's ethnicity when the father of the child is of a
+different ethnicity. A mother-to-child ethnic transition matrix is then
+applied to $B^{i}_{e,t}$ to distribute the newborn's ethnic groups. The
+construction of the matrix is described in @sec-birth-transition.
+Finally, the sex proportion of the projected births are 0.513 for males
+and 0.487 for females. The proportions are assumed to be constant
+throughout the projection period.
+
+## Survivors and non-survivors
+
+Mortality rates describe the level of mortality experienced by a
+population but CCM requires the probability that an individual survive
+from the one projection interval to the next. Following
+@wohland2010ethnic, non-survivorship probabilities are derived from the
+life table which is presented in @sec-mortality which is
+$q^{i}_{e,s,x,t}$ and therfore, the corresponding survivorship
+probability is:
+
+$$
+s^{i}_{e,s,x,t}
+=
+1-q^{i}_{e,s,x,t}
+$$ {#eq-survivorship}
+
+Applying these survivorship and non-survivorship probabilities to the
+start population yields total survivors $TS^{i}_{e,s,x,t}$ and deaths
+$D^{i}_{e,s,x,t}$ for period-cohort $x$, ethnic group $e$ and sex $s$ in
+zone $i$:
+
+$$
+TS^{i}_{e,s,x,t}
+=
+s^{i}_{e,s,x,t}
+P^{start,i}_{e,s,x,t}
+$$ {#eq-total-survivors}
+
+$$
+D^{i}_{e,s,x,t}
+=
+q^{i}_{e,s,x,t}
+P^{start,i}_{e,s,x,t}
+$$ {#eq-deaths}
+
+After the application of survivorship and non-survivorship
+probabilities, survivors are aged forward by one year. For Birmingham
+implementation, this is carried out before migration so that the age and
+year of the population at risk is aligned with the migration inputs for
+the projeciton year. This followed ONS practice to calculate migration
+to the aged-on civilian population [@ons2025snppmethodology], and
+departs from @wohland2010ethnic.
+
+## Migration of survivors
+
+After ageing, international emigration is substrated from the total
+survivors $TS^{i}_{e,s,x,t}$ in Birmingham population. Unlike
+@wohland2010ethnic, direct flows of emigration from ONS SNPP is used, no
+survivorship adjustment is applied. The population surviving within the
+country is therefore:
+
+$$
+WS^{i}_{e,s,x,t}
+=
+TS^{i}_{e,s,x,t}
+-
+E^{i}_{e,s,x,t}
+$$ {#eq-within-country-survivors}
+
+where $WS^{i}_{e,s,x,t}$ is the population surviving within the country
+after mortality and international emigration.
+
+Internal out-migration $M^{ir}_{e,s,x,t}$ from zone $i$ to the REW $r$
+is then calculated by multiplying the corresponding internal
+out-migration probability (detailed in @sec-internal-migration)
+$m^{ir}_{e,s,x,t}$ to population surviving within the country
+$WS^{i}_{e,s,x,t}$ is given as:
+
+$$
+M^{ir}_{e,s,x,t}
+=
+m^{ir}_{e,s,x,t}
+WS^{i}_{e,s,x,t}
+$$ {#eq-internal-out}
+
+Internal in-migration $M^{ri}_{e,s,x,t}$ from REW $r$ to zone $i$ is
+calculated as:
+
+$$
+M^{ri}_{e,s,x,t}
+=
+m^{ri}_{e,s,x,t}
+P^{REW}_{e,s,x,t}
+$$ {#eq-internal-in}
+
+where $P^{REW}_{e,s,x,t}$ is the ONS projected REW population stock used
+in place of a the within country survivor population for REW. The full
+explanation is described in @sec-internal-migration.
+
+## Final population
+
+The components in @eq-projection-accounting can now be substituted with
+the component-specific equations defined above. The final population for
+each ethnic group, sex and age is given by:
+
+$$
+\begin{aligned}
+P^{end,i}_{e,s,x,t}
+={}&
+\underbrace{P^{start,i}_{e,s,x,t}
+-
+q^{i}_{e,s,x,t}P^{start,i}_{e,s,x,t}
+-
+E^{i}_{e,s,x,t}}_{\text{within-country survivors}} \\[6pt]
+&-
+\underbrace{
+m^{ir}_{e,s,x,t}
+\left(
+P^{start,i}_{e,s,x,t}
+-
+q^{i}_{e,s,x,t}P^{start,i}_{e,s,x,t}
+-
+E^{i}_{e,s,x,t}
+\right)
+}_{\text{internal out-migration}} \\[6pt]
+&+
+\underbrace{m^{ri}_{e,s,x,t}P^{REW}_{e,s,x,t}}_{\text{internal in-migration}}
++
+\underbrace{I^{i}_{e,s,x,t}}_{\text{international immigration}}
+\end{aligned}
+$$ {#eq-final-pop}
+
+With regards to the newborn cohort in each projection interval, there is
+no start population. Therefore, the projected births $B^{i}_{e,t}$ are
+directly used in place of $P^{start,i}_{e,s,x,t}$. This implies newborn
+are exposed to international emigration, internal out-migration,
+internal in-migration and international immigration on the same basis as
+all other cohorts.
+
+For the terminal cohort, survivors aged 99 and 100+ are combined into a
+single open-ended 100+ group. This group is carried forward in each
+subsequent projection year and accumulates survivors until the end of
+the projections.
 
 \newpage
 
 # Data sources {#sec-data}
 
-\newpage
+| Component                                           | Data source                                                                    | Reference period                              | Publicly available? | Citation                                                        |
+|---------------|---------------|---------------|---------------|---------------|
+| **Base population**                                 | Census 2021 population by ethnic group, sex and single year of age             | 2021                                          | Yes                 | [@ons2023rm032]                                                 |
+| **Fertility**                                       | NHS Maternity Services Data Set (MSDS)                                         | 2022                                          | No                  |                                                                 |
+| **Fertility**                                       | ONS registered births, Birmingham                                              | 2022                                          | Yes                 | [@ons2023birthsbyarea]                                          |
+| **Newborn ethnicity**                               | Derived from NHS Maternity Services Data Set (MSDS)                            | Baseline matrix                               | No                  |                                                                 |
+| **Mortality**                                       | Birmingham death registration records                                          | 2022--2024                                    | No                  |                                                                 |
+| **Mortality**                                       | National life tables, ONS                                                      | 2022--2024                                    | Yes                 | [@ons2025nlt]                                                   |
+| **International immigration and emigration levels** | ONS 2022-based Subnational Population Projections (SNPP), migration components | 2023--2047                                    | Yes                 | [@ons2025snpp; @ons2025snppintmig]                              |
+| **International migration backfill**                | ONS Mid-Year Estimates migration components                                    | 2021--2022                                    | Yes                 | [@ons2024mye]                                                   |
+| **International immigration ethnicity**             | NHS GP Flag 4 registrations for Birmingham                                     | 2013--2022                                    | No                  |                                                                 |
+| **International emigration nationality**            | ONS Long-Term International Migration (LTIM)                                   | June 2022                                     | Yes                 | [@ons2022ltim]                                                  |
+| **Internal migration flows**                        | Census 2021 origin-destination data (ODMG03EW_LTLA)                            | One year before Census Day to Census Day 2021 | Yes                 | [@ons2023odmg03ew; @ons2023odguide]                             |
+| **Internal migration ethnicity**                    | Wohland et al. (2010) internal migration ethnic-group data                     | 2001 Census / 2000--01                        | Yes                 | [@wohland2010ethnic]                                            |
+| **Internal migration age-sex pattern**              | ONS detailed internal migration Data                                           | 2021--2024                                    | Yes                 | [@ons2025intmigla]                                              |
+| **REW population**                                  | Census 2021 and projected England and Wales population series                  | 2021--2047                                    | Yes                 | [@ons2023rm032; @ons2025snpp; @wg2025lapp; @statswales2025lapp] |
 
-# Mortality {#sec-mortality}
-
-## Overview
-
-## Data window and COVID exclusion
-
-## Empirical Bayes shrinkage
-
-## Graduation: ordinary Beers interpolation
-
-## Old-age extrapolation
-
-## Mortality improvement
-
-## Output
+: Main data sources used in the Birmingham ethnic population projection
+{#tbl-data-sources}
 
 \newpage
 
@@ -107,49 +425,879 @@ The Birmingham ethnic population projection uses the cohort-component framework 
 
 ## Overview
 
-## Data source and window
+There are no available data in the UK regarding to age specific
+fertility rates (ASFRs) by ethnic group. Common methods are estimating
+Total Fertility rates (TFRs) from child-women ratios, using the
+own-child method from Labour Survey. This section shows how the age
+specific fertility rates by ethnic group are derived from limited data
+sources.
 
-## Curve fitting and ratio adjustment
+## Adjustment to official birth totals
 
-## External scaling
+Age-specific fertility rates (ASFRs) are constructed from the NHS
+Maternity Services Data Set (MSDS), filtered to the 2022 data. Recorded
+were restricted to births where mother's recorded electoral wards was
+within Birmingham. Maternal age between 15 and 49 was firstly grouped
+into five-year reproductive age groups from 15-19 to 45-49. There is a
+3.36% of birth records with missing mother's ethnicity in 2022.
+Proportion redistribution of ethnic group is used to replace the missing
+mother's ethnicity with the Birmingham ethnic composition at ward level.
+For each combination of ward and maternal age group, the number of
+births with missing mother's ethnicity was allocated across the 12
+harmonised ethnic groups corresponding to the ethnic shares of that
+ward.
 
-## Projection to terminal year
+MSDS is an administrative maternity dataset and therefore, the number
+does not match to the official number of registered births reported by
+ONS, thereby creating a huge discrepancy. Using the standalone MSDS
+count underestimates the fertility rates of Birmingham. The resulting
+approach is to estimate the shares of births by maternal ethnicity
+within each maternal age group from MSDS, then apply the shares to the
+Official ONS registered births for Birmingham. This preserve the age and
+ethnic distribution of births but also matching the ONS count.
 
-## Mother-to-child ethnic transfer matrix
+## Calculation of five-year ASFRs
 
-## Plausibility checks and open question
+ASFRs were initially calculated for seven five-year age groups between
+15 and 49 years. For each ethnic group and maternal five-year age group,
+the number of births was divided by the corresponding Biringham female
+population. However, direction calucaltion of fertility rates for 12
+ethnic groups and 7 age groups resulting 84 combinations of ASFRs where
+$x_5$ denotes the five-year maternal age group (15–19, 20–24, ...,
+45–49), $B_{e,x_5,t}^{*}$ is the number of births to mothers in ethnic
+group $e$ and $P^{i}_{e,s,x_5,t}$ is the corresponding female
+population.
 
-## Output
+$$
+f^{p,i}_{e,x_5,t}
+=
+\frac{
+B^{*,i}_{e,x_5,t}
+}{
+P^{i}_{e,s,x_5,t}
+},
+\qquad s=F
+$$ Some combinations may contain very few or no observed births even
+though the underlying fertility rate is unlikely to be exactly zero. A
+smoothing technique is adopted to stabilise the rates before supply to
+the projection.
+
+## Empirical Bayes smoothing for five-year ASFRs
+
+A group-specific Empirical Bayes (EB) smoothing mode was used to
+stabilise the five-year ASFRs. This method partially shrinks these
+estimates towards the mean fertility rate for the corresponding
+five-year age group across ethnic groups. The gamma distribution is
+specified as the prior for the underlying five-year ASFRs. The model can
+be written as:
+
+$$
+f^{p,i}_{e,x_5,t}
+\sim
+\operatorname{Gamma}
+\left(
+\alpha_{x_5},
+\beta_{x_5}
+\right)
+$$
+
+where $f_{e,x5}$ is the true five-year ASFRs for each ethnic group. The
+method of moments is used to estimate the group-specific gamma
+distribution's shapes $\alpha_{x_5}$ and $\beta_{x_5}$, which uses the
+group-specific mean $\mu_{x_5}$ and variance $v_{x_5}$:
+
+$$
+\alpha_{x_5}
+=
+\frac{\mu_{x_5}^{2}}{v_{x_5}}
+$$
+
+$$
+\beta_{x_5}
+=
+\frac{\mu_{x_5}}{v_{x_5}}
+$$
+
+Once the shapes are obtained, the EB shrinkage can be applied to the
+five-year ASFRs for each ethnic group with the following formula:
+
+$$
+\hat{f}^{EB,i}_{e,x_5,t}
+=
+\frac{
+B^{*,i}_{e,x_5,t}
++
+\alpha_{x_5}
+}{
+P^{i}_{e,s,x_5,t}
++
+\beta_{x_5}
+},
+\qquad s=F
+$$
+
+## Conversion to single-year ASFRs using the Hadwiger model
+
+The EB-smoothed fertility rates are estimated for five-year maternal age
+groups. However, the cohort component model operates by single year of
+age. The five-year ASFRs were therefore interpolated into single-year
+rates for ages 15 to 49 using a **Hadwiger fertility model**. This
+parametric model of fertility is proposed by Hadwiger (1940) to graduate
+and smooth ASFRs [@hadwiger1940] . Applying the three-parameters
+function to UK ethnic fertility schedules can be presented as follow:
+
+$$
+f^{H}_{e}(x)
+=
+\frac{R_{e} H_{e}}{T_{e}}
+\left( \frac{T_{e}}{x} \right)^{3/2}
+\exp
+\left[
+- H_{e}^{2}
+\left(
+\frac{T_{e}}{x} + \frac{x}{T_{e}} - 2
+\right)
+\right]
+$$
+
+where $f^{H}_{e}(x)$ is the fitted fertility rate for ethnic group $e$
+at exact maternal age $x$, and $R_{e}$, $H_{e}$ and $T_{e}$ are the
+three fitted parameters. $R_{e}$ is the total fertility of each ethnic
+group served as a scaling parameter and fixes the overall level of the
+curve without affecting its shape; $H_{e}$ is a shape parameter
+governing the concentration of childbearing; $T_{e}$ is a location
+parameter, higher value implies older ages of childbearing; $H_{e}$ is a
+shape parameter controlling the concentration of childbearing around the
+central age. The larger the value, the more peaked schedule.
+
+The model is fitted to every ethnic groups individually. The parameters
+were fitted by minimising the sum of squared differences between the
+observed EB-smoothed five-year ASFRs and the corresponding five-year
+rates implied by the fitted Hadwiger schedule. The estimated single year
+ASFRs for each ethnic group are shown in @fig-fertility-asfr.
+
+```{r}
+#| label: fig-fertility-asfr
+#| fig-cap: "Estimated single-year age-specific fertility rates derived from five-year grouped ASFRs, by ethnic group, Birmingham 2022"
+#| fig-width: 10
+#| fig-height: 10.5
+#| warning: false
+#| message: false
+stacked = read_rds(
+  here::here("data", "processed", "03_Birmingham_fertility_stacked.rds"))
+
+eth_names = c(
+  WBI = "White British", WHO = "Other White", MIX = "Mixed",
+  IND = "Indian",        PAK = "Pakistani",   BAN = "Bangladeshi",
+  CHI = "Chinese",       OAS = "Other Asian", BLA = "Black African",
+  BLC = "Black Caribbean", OBL = "Other Black", OTH = "Other ethnic group"
+)
+
+eth_order = c("WBI", "WHO", "MIX",           # White + Mixed
+              "IND", "PAK", "BAN", "CHI", "OAS",  # Asian
+              "BLA", "BLC", "OBL",           # Black
+              "OTH")                          # Other
+
+eth_lookup = tibble(eth_code = names(eth_names),
+                    eth_name = unname(eth_names)) %>% 
+  mutate(eth_name = factor(eth_name, levels = eth_names[eth_order]))
+
+
+
+stacked %>%
+  left_join(eth_lookup, by = "eth_code") %>%
+  ggplot(aes(x = single_age))+
+  geom_line(aes(y = fx_obs, colour = "Grouped"),
+            linewidth = 1) +
+  geom_line(aes(y = corrected_fx_single, colour = "Single year"),
+            linewidth = 1) +
+  scale_color_manual(values = c("Single year" = "#D00070",
+                                "Grouped"       = "#3c3c3b"))+
+  scale_x_continuous(limits = c(15,49), breaks = seq(15,49,2))+
+  labs(
+    title = "Estimated singe year ASFRs from five year grouped ASFRs of women \nby ethnicity in Birmingham 2022",
+    x = "Single year of age",
+    y = "Age-sepcific fertility rate")+
+  labs(colour = "")+
+  theme_bcc(base_size =15,
+            gridline_x = FALSE)+
+  theme(legend.position = "bottom",
+        axis.text.x = element_text(size = 9, angle = 90, hjust = 1))+
+  facet_wrap(~eth_name)
+
+
+```
+
+The resulting single-year schedule provides the period-age fertility
+rates $f^{p,i}_{e,x,t}$ used in the cohort-component model.
+
+## Future fertility assumptions
+
+There is no Birmingham-specific time series data to estimate a robust
+future fertility trajectory separately for each ethnic group. Therefore,
+future changes of Birmingham ASFRs follow the national fertility
+assumptions set by ONS,
+
+The differences in baseline fertility between ethnic groups are held
+constant and a common proportional change in fertility over time is
+applied to all ethnic group. The proportional change is obtained from
+the national fertility rate where 2022 TFR is the baseline. For
+Birmingham, the 2022 baseline TFR of 1.66 is held constant through 2024.
+This is because there is an actual observed spike in registered births
+in Birmingham during 2024 but declined in 2025. From 2025 onward, the
+Birmingham fertility trajectory follows the proportional change implied
+by the national assumption, declining to 1.55 by 2029 and rising
+slightly to 1.59 by 2049. @tbl-fertility-assumptions shows the matching
+proportion change of Birmingham and ONS TFR.
+
+| Year | ONS TFR | Birmingham TFR | Proportion of 2022 |
+|------|---------|----------------|--------------------|
+| 2022 | 1.45    | 1.66           | 1                  |
+| 2029 | 1.38    | 1.55           | 0.952              |
+| 2049 | 1.42    | 1.59           | 0.979              |
+
+: ONS and Birmingham TFR assumptions used in the fertility projection
+{#tbl-fertility-assumptions}
+
+As shown in @tbl-ethnic-tfr,the assumed proportional change is applied
+to all the ethnic groups over the projection period.
+
+| Ethnic group | TFR 2022 | TFR 2029 | TFR 2047 |
+|--------------|---------:|---------:|---------:|
+| WBI          |     1.55 |     1.45 |     1.48 |
+| WHO          |     1.85 |     1.73 |     1.77 |
+| MIX          |     1.45 |     1.36 |     1.39 |
+| IND          |     1.12 |     1.04 |     1.07 |
+| PAK          |     2.21 |     2.07 |     2.12 |
+| BAN          |     1.40 |     1.31 |     1.34 |
+| CHI          |     0.85 |     0.79 |     0.81 |
+| OAS          |     2.23 |     2.09 |     2.13 |
+| BLA          |     2.00 |     1.86 |     1.91 |
+| BLC          |     1.24 |     1.16 |     1.19 |
+| OBL          |     2.19 |     2.04 |     2.09 |
+| OTH          |     1.63 |     1.52 |     1.55 |
+
+: Projected total fertility rates by ethnic group, Birmingham
+{#tbl-ethnic-tfr}
+
+## Mother-to-child ethnic transfer matrix {#sec-birth-transition}
+
+The ethnicity of a newborn is not always the same as that of the mother
+and it is most obvious when parents are not from the same ethnic group.
+Furthermore, parents may not report their children as mixed ethnic but
+rather either one of the parent's ethnic group. A direct assignment of
+births to the mother's ethnicity would misclassify a proportion of
+newborns. To account for this, a mother-to-child ethnic transition
+matrix was applied.
+
+```{r}
+#| label: fig-mother2child-matrix
+#| fig-cap: "Mother-to-child ethnic transfer matrix"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+mixing_matrix_complete = read_csv(
+  here::here("data", "processed", "04_birth_transition_matrix.csv"))
+
+
+mixing_matrix_complete = mixing_matrix_complete %>% 
+  mutate(percentage = round(percentage*100,1),
+         group = case_when(
+           percentage < 1  ~ "<1%",
+           percentage >= 1  & percentage < 25 ~ "1% - <25%",
+           percentage >= 25 & percentage < 50 ~ "25% - <50%",
+           percentage >= 50 & percentage < 80 ~ "50% - <80%",
+           percentage >= 80 ~ ">=80%"
+         ),
+         group = factor(group, levels = c("<1%", "1% - <25%", "25% - <50%", "50% - <80%", ">=80%")),
+         eth_code_mother = factor(eth_code_mother, levels = rev(c(
+           "WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))),
+         eth_code_baby = factor(eth_code_baby, levels = rev(c(
+           "WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))))
+
+
+ggplot(mixing_matrix_complete, aes(eth_code_baby,eth_code_mother, fill=group,label = paste0(percentage, "%")))+
+  geom_tile(color = "grey90")+
+  geom_text()+
+  scale_fill_manual(values = c("<1%" = "white",
+                               "1% - <25%"  = bcctheme::bcc_pal("purple")(5)[5],
+                               "25% - <50%" = bcctheme::bcc_pal("purple")(5)[4],
+                               "50% - <80%" = bcctheme::bcc_pal("purple")(5)[3],
+                               ">=80%" = bcctheme::bcc_pal("purple")(5)[2])) +
+  labs(x        = "12 harmonised ethnic group of newborn", 
+       y        = "12 harmonised ethnic group of mother",  
+       fill = "Percentage", 
+       title="Mother-to-child ethnic transfer matrix",
+       subtitle = "mother's ethnicity in rows and newborn's ethnicity in columns"
+      ) +
+  scale_x_discrete(expand=c(0,0)) +
+  scale_y_discrete(expand=c(0,0)) +
+  coord_fixed()+
+  theme_bcc(gridline_x = F,
+            gridline_y = F,
+            base_size = 15)+
+  theme(legend.position = "bottom")
+
+
+
+```
+
+The transition matrix should be interpreted by row, with each row giving
+the conditional distribution of the newborn's ethnic group given the
+mother's ethnic group.Row percentages therefore sum to 100%.
 
 \newpage
 
-# International immigration {#sec-immigration}
+# Mortality {#sec-mortality}
 
 ## Overview
 
-## Level
+The availability of recent mortality rates at single year of age, for
+both sexes and for each 12 harmonised ethnic group are limited. The
+closest publicly available data came from the analysis of ethnic
+differences in life expectancy by ONS in which the data used span from
+2011 to 2014 which are outdated for this projection. Furthermore, the
+estimates produced by ONS are age-standardised rates and cannot be
+broken down into single year of age rates. Mortality rates were
+therefore estimated directly using recent Birmingham death registration
+data.
 
-## Ethnic profile
+## Data window
 
-## Age-sex schedule
+Death registration records for Birmingham residents were pooled across
+2022 to 2024.Deaths recorded between the COVID affected years (2020 to
+2021) were explicitly excluded because the inclusion of these year for
+estimation will potentially introduce permananet shocks from a temporary
+pandemic. This is consistent with ONS evidence that mortality patterns
+began to stabilise following the acute phase of the pandemic. Recorded
+were restricted to deaths where the deceased 's corresponding electoral
+wards was within Birmingham.
 
-## Backfill and terminal extension
+## Empirical Bayes shrinkage of mortality rates
 
-## Output
+Similar to the five-year ASFRs mentioned in the last section, the
+calculation of mortality rates for each ethnic group for both sexes can
+be unstable due to small numbers. Therefore, the same group-specific EB
+shrinkage procedure was applied to the five-year grouped mortality rates
+were firstly estimated.This allows mortality rates based on small
+populations to be shrunk towards the wider Birmingham sex-age mortality
+pattern, while estimates supported by larger numbers remain closer to
+their observed values. The resulting smoothed mortality rates were then
+used to construct the abridged life tables.
+
+## Construction of abridged life tables
+
+The smoothed mortality rates were used to construct separate abridged
+life tables for each ethnic group and sex. The age intervals were
+defined as 0, 1-4 and from 5-9 to 85-89 and open-ended 90+ group. For
+each age interval, the smoothed central mortality rate,
+$m^{EB,i}_{e,s,x,t}$, was converted to the corresponding probability of
+dying within the interval, $q^{i}_{e,s,x,t}$, using the standard
+life-table relationship:
+
+$$
+q^{i}_{e,s,x,t}
+=
+\frac{
+n m^{EB,i}_{e,s,x,t}
+}{
+1 + (n-a_x)m^{EB,i}_{e,s,x,t}
+}
+$$
+
+where $n$ is the width of the age interval and $a_x$ denotes the average
+number of years lived within the interval by those who die during that
+interval. For five-year age groups and 1-4, deaths were assumed to occur
+in the middle of the interval. Infant mortality at age 0 was treated
+separately where $a_x$ was set as the conventional assumption of 0.07,
+implying that infant deaths mostly occurred within the first weeks of
+life rather than evenly across the year. The 90+ group was initially
+specified as an open-ended interval.
+
+## Expansion to single-year probabilities of dying
+
+The abridged life tables provide mortality estimated for grouped age
+interval. In order to produce the single-year probabilities of dying,
+the abridged life tables were therefore expanded to single year of age
+using a relational method. This is a simple non-parametric expanding
+techniques that borrows the detailed single-year of age mortality from a
+complete life table as reference [@kostaki2001expanding]. The national
+life table for 2022-2024 was used as the reference mortality schedule.
+For each ethnic group, sex and age interval, an adjustment factor
+$K^{i}_{e,s,x,t}$ was calculated as:
+
+$$
+K^{i}_{e,s,x,t}
+=
+\frac{
+\ln(1-{}_n q^{i}_{e,s,x,t})
+}{
+\displaystyle\sum_{j=0}^{n-1}
+\ln(1-q^{ref}_{s,x+j})
+}
+$$
+
+where ${}_n q^{i}_{e,s,x,t}$ is the probability of dying within the
+grouped age interval for ethnic group $e$ and sex $s$, and
+$q^{ref}_{s,x+j}$ is the corresponding single-year probability of death
+from the national reference life table. After obtaining the adjustment
+factor $K^{i}_{e,s,x,t}$ , single-year mortality probabilities within
+each age interval for ethnic group $e$ and sex $s$ were then calculated
+as:
+
+$$
+q^{i}_{e,s,x+j,t}
+=
+1-
+\left(
+1-q^{ref}_{s,x+j}
+\right)^{K^{i}_{e,s,x,t}},
+\qquad j=0,\ldots,n-1
+$$
+
+The relational expansion was applied to ages 1-89. Mortality at age 0
+was retained from the ethnic-specific abridged life table. For the 90+
+open-ended group, the Kannisto method was employed to extrapolate
+mortality across the oldest ages 90 to 100 [@thatcher1998force]. The
+Kannisto model fits the specified range of older age trajectory (80-89
+used) and extrapolates it outward to 90-100. This analysis used the
+MortCast R pacakge to fit the model and generate the extrapolated
+single-year rates [@sevcikova2021mortcast]. The expanded single-year
+mortality probabilities are presented for each sex and ethnic group and
+compared with the corresponding probabilities from the national
+reference life table in @fig-mortality.
+
+```{r}
+#| label: fig-mortality
+#| fig-cap: "Baseline single-year mortality schedules by ethnic group and sex, Birmingham"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+national_lifetable = read_xlsx(here::here("data", "mortality", "UK_national_life_table_2022_24.xlsx"))
+
+
+mortality_input = read_csv(here::here("data", "processed", "01_02_Birmingham_mortality_rate_0_100_projected.csv"))
+
+#---------------------------------------------------
+#base map
+#---------------------------------------------------
+broad_group_map = tibble::tribble(
+  ~eth_code, ~ethnic_group,          ~broad_group, ~broad_colours, 
+  "WBI",     "White British",        "White",           "blue",
+  "WHO",     "White Other",          "White",           "blue",
+  "MIX",     "Mixed",                "Mixed",           "green",
+  "IND",     "Indian",               "Asian",           "orange",
+  "PAK",     "Pakistani",            "Asian",           "orange",
+  "BAN",     "Bangladeshi",          "Asian",           "orange",
+  "CHI",     "Chinese",              "Asian",           "orange",
+  "OAS",     "Other Asian",          "Asian",           "orange",
+  "BLA",     "Black African",        "Black",           "purple",
+  "BLC",     "Black Caribbean",      "Black",           "purple",
+  "OBL",     "Other Black",          "Black",           "purple",
+  "OTH",     "Other ethnic group",   "Other",            "pink"
+)
+
+#---------------------------------------------------
+#add harmonised shades + factor ordering
+#---------------------------------------------------
+broad_group_map = broad_group_map %>% 
+  group_by(broad_colours) %>% 
+  mutate(shade_number = row_number(),
+         harmonised_colour = bcc_pal(palette = first(broad_colours))(n() + 2)[shade_number]) %>% 
+  ungroup() %>% 
+  mutate(broad_colours_hex = bcc_cols(broad_colours)) %>% 
+  mutate(broad_group = factor(broad_group, levels = c("White","Mixed","Asian","Black","Other")),
+         eth_code = factor(eth_code, levels = c(
+           "WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))) %>% 
+  arrange(broad_group, eth_code)
+#---------------------------------------------------
+#build named colour + label vectors from the broad-group map
+#---------------------------------------------------
+eth_colours = setNames(broad_group_map$harmonised_colour, broad_group_map$eth_code)
+eth_labels  = setNames(broad_group_map$ethnic_group,      broad_group_map$eth_code)
+eth_order   = levels(broad_group_map$eth_code)
+
+ggplot() +
+  geom_line(data = mortality_input %>% 
+              filter(year == 2021) %>% 
+              mutate(eth_code = factor(eth_code, levels = eth_order)),
+            aes(age, 1 - survival_probability, colour = eth_code,
+                group = interaction(eth_code, DEC_SEX)),
+            linewidth = 0.45, alpha = 0.85) +
+  geom_line(data = national_lifetable %>% mutate(DEC_SEX = Gender),
+            aes(age, qx, group = DEC_SEX),
+            colour = "grey30", linewidth = 0.9) +
+  facet_wrap(~DEC_SEX) +
+  scale_y_log10(labels = scales::label_number()) +
+  scale_colour_manual(values = eth_colours,
+                      breaks = eth_order) +
+  labs(title = "Baseline expanded single-year mortality probabilities by ethnic group \nand sex, Birmingham",
+       subtitle = "Ethnic mortality probabilities pooled from 2022-2024 death registrations; \nblack line: national life table 2022-2024",
+       x = "Age", y = expression(q[x]~(log~scale)),
+       colour = "Ethnic group") +
+  theme_bcc(base_size = 15)+
+  guides(color = guide_legend(nrow = 2, byrow = TRUE))+
+   theme(legend.position = "bottom")
+
+
+```
+
+It shows that the mortality probabilities closely follow the shape of
+national life table while preserving the ethnic differences in survival.
+The less-smooth, stepped appearance of the ethnic is an artefect of the
+relational method. It is because the same adjustment factor was applied
+uniformly within each of the five-year abridged band smoothly while at
+each band boundary, the adjustment factor jumps to a new value causing
+steps in the curve.
+
+## Future mortality assumptions
+
+This projection adopted a 1% long-term mortality improvement applied to
+all ethnic groups, sexes and ages. The mortality improvement was
+assummed to increase gradually from 0% to 1% by the 25th projection
+year. Thereafter, the annual improvement rate was held constant at 1%
+for the remainder of the projection period. The life expectancies
+associated with 1% mortality improvement are presented in
+@tbl-life-expectancy
+
+```{r}
+#| label: tbl-life-expectancy
+#| tbl-cap: "Projected life expectancy at birth under 1% mortality improvement, Birmingham"
+#| warning: false
+#| message: false
+
+#------------------------------------------------------
+#build the life table columns
+#------------------------------------------------------
+life_expectancy = mortality_input %>% 
+  arrange(year, eth_code, DEC_SEX, age) %>% 
+  group_by(year, eth_code, DEC_SEX) %>% 
+  mutate(ax = case_when(age == 0        ~ 0.07,
+                        age == max(age) ~ NA_real_,
+                        TRUE            ~ 0.5),
+         qx = if_else(age == max(age), 1, 1 - exp(-mx_for_deaths)),
+         lx = 100000 * cumprod(lag(1 - qx, default = 1)),
+         dx = lx * qx,
+         Lx = if_else(age == max(age), lx / mx_for_deaths, lead(lx) + ax * dx),
+         Tx = rev(cumsum(rev(Lx))),
+         ex = Tx / lx
+         ) %>% 
+  ungroup()
+
+#------------------------------------------------------
+#reshape to the wide reporting table
+#------------------------------------------------------
+life_expectancy_table = life_expectancy %>% 
+  filter(year %in% c(2022, 2032, 2047), age == 0) %>% 
+  select(eth_code, DEC_SEX, year, ex) %>% 
+  pivot_wider(names_from = c(DEC_SEX, year), values_from = ex) %>% 
+  mutate(eth_code = factor(eth_code, levels = c("WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))) %>% 
+  arrange(eth_code) %>% 
+  select(eth_code, Female_2022, Female_2032, Female_2047, Male_2022, Male_2032, Male_2047)
+
+#------------------------------------------------------
+#format the gt table
+#------------------------------------------------------
+life_expectancy_table %>% 
+  gt(rowname_col = "eth_code") %>% 
+  tab_spanner(label = "Female", columns = c(Female_2022, Female_2032, Female_2047)) %>% 
+  tab_spanner(label = "Male",   columns = c(Male_2022, Male_2032, Male_2047)) %>% 
+  cols_label(Female_2022 = "2022",
+             Female_2032 = "2032",
+             Female_2047 = "2047",
+             Male_2022   = "2022",
+             Male_2032   = "2032",
+             Male_2047   = "2047"
+             ) %>% 
+  tab_stubhead(label = "Ethnic group") %>% 
+  fmt_number(columns = everything(), decimals = 1)
+
+
+```
 
 \newpage
 
-# International emigration {#sec-emigration}
+# International migration {#sec-immigration}
 
 ## Overview
 
-## Indirect method and nationality streams
+International migration data is one of the most difficult demographic
+components to estimate reliably. It is more problematic when migration
+data has to be broken down into ethnicity, age and sex. There are no
+reliable official sources that provide a complete record of people
+entering and leaving the country at granular level required by this
+project. International immigration and emigration were therefore
+modelled as exogenous components using a combination of data sources.
+For each migration flow, the overall annual level, age and sex schedule
+and ethnic composition were estimated separately and combined
+manipulatively to produce the final migration counts. This approach is
+consistent with @wohland2010ethnic, with contemporary sources
+substituted at each position.
 
-## Ethnic profiling of each stream
+Both immigration and emigration enter the projection engine as flows
+rather than rates. It is unavoidable because immigrants originate
+outside the projected population and no population at-risk exists to
+form a denominator. Emigration can be estimated as rates and flows but
+this project adopts flow instead. Given the limited data available to
+estimate robust ethnicity-specific emigration rates, borrowing the ONS
+SNPP emigration flow was considered the more defensive and conservative
+assumption.
 
-## Scaling to national totals
+## Migration levels
 
-## Output
+The ONS 2022-based SNPP international migration components were employed
+and filtered to Birmingham as the annual migration levels. The data
+cover years 2023 to 2047. For the two years preceding the subnational
+series, 2021 and 2022, observed data rather than projected levels were
+used in the model. These were incorporated as back-filled inputs with
+the derived ethnic-age-sex composition presented in the following
+subsections. The observed data were taken from the Mid-Year Estimates
+(MYE) back-series population data set for England and Wales, covering
+the period from mid-2011 to mid-2023.
+
+## Estimating the ethnic composition of immigration
+
+The ethnic composition of international immigration was estimated from
+GP registration Hlag 4 records for Birmingham from 2013 to 2022. The
+Flag4 data identify individuals registering a GP whose previous address
+was outside the UK or who had spent at least three months or more living
+abroad. The data does not record ethnicity but rather the country of
+birth.
+
+The country of birth was redistributed to firstly the ONS 20 categories
+of ethnic group using the ONS custom data webpage, and then converted to
+the 12 harmonised ethnic group used in this project. Given that the
+available Flag 4 data cover multiple years, the long run ethnic
+composition convergence can be imposed with assumptions rather than
+holding it constant. The assumptions and calculation will be presented
+in section 7.6.
+
+The derived ethnic composition was then multiplied to the ONS SNPP
+immigration component at a age-sex structure. This produces an annual
+series of international immigration flows by ethnicity, age and sex.
+
+![Immigration
+Flow](fig/Sec_7.3_immigration_flow.svg){#fig-immigration-flow}
+
+@fig-immigration-flow shows the major steps in deriving the final output
+of annual immigration flows by ethnicity, age and sex with the input
+data including Flag4 and ONS SNPP Immigration.
+
+## Estimating the ethnic composition of emigration
+
+The estimation of the ethnic, age and sex compositions of emigration was
+handled differently and indirectly, following the "creative" approach as
+described and used by @wohland2010ethnic.
+
+The emigration level was first divided into British and non-British
+nationally using the national outflow proportion calculated from the
+Long-Term International Migration series for June 2022. The same
+proportion was applied to every year, age and sex. This purpose if
+splitting British and non-British is to allow the two streams to carry
+different ethnic compositions, since British and non-British emigration
+differ substantially in composition.
+
+To be consistent with @wohland2010ethnic, the ethnic composition of the
+non-British emigration mirrors the immigration ethnic profile which is
+the Flag4 data. With regards to British emigration, the Birmingham's
+internal out-migration ethnic composition was assigned. The ethnic
+compositions of the two streams were then held constant across the
+projection period.\
+\
+The borrowed ethnic compositions were then multiplied to the ONS SNPP
+emigration component at a age-sex structure. This result is an annual
+series of ethnic-age-sex flow of emigration.
+
+![Emigration
+Flow](fig/Sec_7.4_emigration_flow.svg){#fig-emigration-flow}
+
+@fig-emigration-flow shows the major steps in deriving the final output
+of annual emigration flows by ethnicity, age and sex with the input data
+including Flag4, Birmingham's internal out-migration ethnic shares and
+ONS SNPP Emigration.
+
+## Expansion of the 90 and over group
+
+The ONS SNPP Migration components report the oldest age category as 90
+and over, which is an open-ended group. To be consistent with the
+projection engine with single-year structure, the open-ended 90 and over
+group was expanded to single years of age 90 to 100. The procedure was
+simply dividing the group total equally across eleven single-year ages.
+This serves as a placeholder and should be interpreted as a pragmatic
+allocation rather than a modelled age profile as it implies the same
+number of migrants at age 100 as at age 90. However, the counts at these
+old ages are very small and they are unlikely to influence the projected
+totals.
+
+## Future migration assumptions
+
+Given that the annual immigration and emigration levels were taken
+directly from theONS SNPP migration components, the assumptions of
+future migration follow those of the ONS migration category variant. The
+ONS migration category variant is set to decline from the increased
+levels of earlier projection years then is held constant to its
+longer-term assumption.
+
+As the Flag4 data spans multiple years, it is possible to project the
+change in ethnic shares based on assumptions. The projected ethnic
+composition of immigration follows a pre-set, long-term convergence,
+after which it remains constant. The observed 2022 composition was taken
+as the starting point, with a pooled 2019 to 2022 composition as the
+long-term target. The convergence is modelled to complete by 2028,
+implying that the shift in ethnic composition over this period is
+calculated as a weighted combination of the start the target points:
+
+$$
+\pi^{I,i}_{e,t}
+=
+(1-\lambda_t)\pi^{I,i,\text{start}}_{e}
++
+\lambda_t\pi^{I,i,\text{target}}_{e}
+$$
+
+$$
+\lambda_t
+=
+\min\left(
+\frac{t-2022}{6},
+1
+\right)
+$$
+
+where $\pi^{I,i}_{e,t}$ is the share of international immigrants in
+ethnic group $e$ in zone $i$ in year $t$. The weight $\lambda_t$
+increases from 0 in 2022 to 1 in 2028, gradually shifting the ethnic
+composition from the observed 2022 distribution towards the pooled 2019
+to 2022 long-term target. From 2028 onward, the target ethnic
+composition was held constant.
+
+```{r}
+#| label: fig-flag4projectedtrend
+#| fig-cap: "Estimated ethnic composition of international immigration"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+flag4_plot = read_rds(
+  here::here("data", "processed", "Flag4_projection_plot_data.rds"))
+
+
+broad_group_map = tibble::tribble(
+  ~eth_code, ~ethnic_group,          ~broad_group, ~broad_colours, 
+  "WBI",     "White British",        "White",           "blue",
+  "WHO",     "White Other",          "White",           "blue",
+  "MIX",     "Mixed",                "Mixed",           "green",
+  "IND",     "Indian",               "Asian",           "orange",
+  "PAK",     "Pakistani",            "Asian",           "orange",
+  "BAN",     "Bangladeshi",          "Asian",           "orange",
+  "CHI",     "Chinese",              "Asian",           "orange",
+  "OAS",     "Other Asian",          "Asian",           "orange",
+  "BLA",     "Black African",        "Black",           "purple",
+  "BLC",     "Black Caribbean",      "Black",           "purple",
+  "OBL",     "Other Black",          "Black",           "purple",
+  "OTH",     "Other ethnic group",   "Other",            "pink"
+)
+
+#=========================================================
+#ethnic group order and fixed broad-group colours
+#=========================================================
+eth_order = c(
+  "WBI", "WHO", "MIX",
+  "IND", "PAK", "BAN", "CHI", "OAS",
+  "BLA", "BLC", "OBL",
+  "OTH"
+)
+
+eth_colours = c(
+  "WBI" = "blue",
+  "WHO" = "blue",
+  "MIX" = "green",
+  "IND" = "orange",
+  "PAK" = "orange",
+  "BAN" = "orange",
+  "CHI" = "orange",
+  "OAS" = "orange",
+  "BLA" = "purple",
+  "BLC" = "purple",
+  "OBL" = "purple",
+  "OTH" = "pink"
+)
+
+#=========================================================
+#ethnic group order and BCC colour shades
+#=========================================================
+eth_order = c(
+  "WBI", "WHO", "MIX",
+  "IND", "PAK", "BAN", "CHI", "OAS",
+  "BLA", "BLC", "OBL",
+  "OTH"
+)
+
+#---------------------------------------------------------
+#shade each ethnic code within its broad group
+#---------------------------------------------------------
+broad_group_map = broad_group_map %>% 
+  mutate(eth_code = factor(eth_code, levels = eth_order)) %>% 
+  arrange(eth_code) %>% 
+  group_by(broad_group, broad_colours) %>% 
+  mutate(
+    shade_number      = row_number(),
+    harmonised_colour = bcc_pal(palette = first(broad_colours))(n() + 2)[shade_number]
+  ) %>% 
+  ungroup()
+
+eth_colours = setNames(broad_group_map$harmonised_colour, broad_group_map$eth_code)
+
+
+#---------------------------------------------------------
+#plot observed vs projected shares
+#---------------------------------------------------------
+flag4_plot %>% 
+  ggplot(aes(
+    x        = year,
+    y        = share,
+    colour   = eth_code,
+    linetype = period,
+    group    = interaction(eth_code, period)
+  )) +
+  geom_line(linewidth = 1) +
+  geom_point(data = ~ filter(.x, period == "Observed"), size = 1.8) +
+  geom_vline(xintercept = 2022, linetype = "dotted", linewidth = 0.6) +
+  scale_colour_manual(
+    values = eth_colours,
+    breaks = eth_order,
+    labels = broad_group_map$ethnic_group[match(eth_order, broad_group_map$eth_code)]
+  ) +
+  scale_linetype_manual(values = c("Observed" = "solid", "Projected" = "dashed")) +
+  scale_x_continuous(breaks = 2012:2028) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title    = "Ethnic composition of international immigration, Birmingham",
+    subtitle = "Observed 2013-2022 and converged by 2028",
+    x        = "Year",
+    y        = "Share of annual immigration inflow",
+    colour   = "Ethnic group",
+    linetype = NULL
+  ) +
+  theme_bcc(base_size = 15) +
+  theme(axis.text.x = element_text(angle = 45))+
+  guides(color = guide_legend(nrow = 3, byrow = TRUE))+
+   theme(legend.position = "bottom")
+
+
+
+
+```
+
+@fig-flag4projectedtrend shows the observed ethnic composition of
+international immigration from 2013 to 2022 as solid lines. The dashed
+lines show the projected shares converging by 2028. Shares are held
+constant at their 2028 values for the rest of the projected years.
 
 \newpage
 
@@ -157,81 +1305,330 @@ The Birmingham ethnic population projection uses the cohort-component framework 
 
 ## Overview
 
-## Estimation stage: all-age out/in probabilities
+A different approach was taken to obtain internal migration compared
+with international migration. Unlike international migration, internal
+migration probabilities were calculated and supplied to the projection
+engine rather than direct flows. A bi-directional internal migration
+framework was used to model migration between Birmingham and the rest of
+England and Wales (REW). The model projects flows from Birmingham to the
+REW and from the REW to Birmingham. In each direction of flows, the
+projected number of migrants is calculated by applying relevant
+migration probabilities to the population at risk.
 
-## Denominator asymmetry
+Since the census OD data record usual residence one year before the
+Census day, it implies that these observed migrants are individuals who
+survived from their previous residence to census date. It provides the
+opportunity to separate migration component from the effect of
+mortality, such that migration probabilities can be estimated using the
+population at risk.
+
+![Internal
+migration](fig/Sec_8_internal_migration_rates.svg){#fig-internalmigration-rates}
+
+@fig-internalmigration-rates shows the major steps in deriving the final
+output of annual internal in- and out-migration probabilities by
+ethnicity, age and sex with the input data including Census 2021
+ODMG03EW_LTLA and ONS detailed age-sex internal migration data.
+
+## Estimation of all-age in-migration probabilities
+
+Internal out-migration is the sum of flows with recorded Birmingham
+origin and non-Birmingham destination while internal in-migration is the
+sum of flows with recorded non-Birmingham origin to Birmingham
+destination. International immigration is also provided in the OD data
+which will be in use to obtain the population at-risk denominator. These
+flows were used to estimate internal in- and out-migration
+probabilities.
+
+For internal out-migration probability, the population at risk consists
+of those who were resident in Birmingham at the beginning of the
+migration interval that survived within England and Wales to Census
+date. Since the Census population represents the population present at
+the end of interval, flows of internal-in migration and immigration were
+firstly removed to identify surviving stayers that had remained in
+Birmingham:
+
+$$
+SS^{i}_{e}
+=
+P^{end,i}_{e}
+-
+M^{ri}_{e}
+-
+I^{i}_{e}
+$$
+
+where $P^{end,i}_{e}$ is the Census 2021 Birmingham population of ethnic
+group $e$ (as the end stock of that interval), $M^{ri}_{e}$ is the
+Internal-in migration to Birmingham and $I^{i}_{e}$ is the international
+immigration.
+
+The surviving stayers alone do not represent the full population at
+risk, because those who moved from Birmingham to REW were Birmingham
+residents at the beginning of the interval and survived to census date.
+The observed internal out-migrants denoted as $M^{ir}_{e}$ was added
+back to the surviving stayers:
+
+$$
+WS^{i}_{e}
+=
+SS^{i}_{e}
++
+M^{ir}_{e}
+$$
+
+The derived $WS^{i}_{e}$ represents the surviving population of ethnic
+group $e$ that was resident in Birmingham at the beginning of the
+interval and was therefore exposed to the risk of internal
+out-migration. The all-age internal out-migration probability for ethnic
+group $e$ was therefore:
+
+$$
+m^{ir}_{e}
+=
+\frac{
+M^{ir}_{e}
+}{
+WS^{i}_{e}
+}
+$$
+
+## Estimation of all-age out-migration probabilities
+
+For internal in-migration probability of Birmingham (which depends on
+REW), the same survivor-based style calculation in principle can be
+applied. Under the bi-directional CCM design, surviving stayers in REW
+would be obtained by removing internal-in migration and immigration to
+REW during the interval from its end-of-interval population:
+
+$$
+SS^{r}_{e}
+=
+P^{REW}_{e}
+-
+M^{ir}_{e}
+-
+I^{r}_{e}
+$$
+
+where $P^{REW}_{e}$ is the Census 2021 REW population (substrated
+Birmingham) of ethnic group $e$, $M^{ir}_{e}$ represents migrants from
+Birmingham to REW, and $I^{r}_{e}$ represents international immigration
+into REW. The full population at risk of moving from REW to Birmingham
+is:
+
+$$
+WS^{r}_{e}
+=
+SS^{r}_{e}
++
+M^{ri}_{e}
+$$
+
+The derived $WS^{r}_{e}$ represents the surviving population of ethnic
+group $e$ that was resident in REW at the beginning of the interval and
+would therefore form the population at risk of migrating from REW to
+Birmingham. From Birmingham's perspective, this corresponds to the
+population at risk of internal in-migration.
+
+However, this analysis did not use survivor-based calculation for
+internal in-migration probability of Birmingham. In order to construct
+$WS^{r}_{e}$ for each projection year require annual REW deaths and REW
+international migration to be modelled by ethnic, sex and single of year
+age. It implies the full accounting for REW to be co-projected alongside
+Birmingham, which is beyond the scope of this analysis aiming to produce
+projection for Birmingham only. Therefore, the ONS projected REW
+population stock $P^{REW}_{e}$ was therefore directly used as the
+population at risk:
+
+$$
+m^{ri}_{e}
+=
+\frac{
+M^{ri}_{e}
+}{
+P^{REW}_{e}
+}
+$$
+
+The difference in choices of denominator reflects how the two
+populations are handled in the model. Birmingham is projected directly
+within the CCM so its surivivng population at risk can be updated by
+each projection year. For REW, it is provided as an exogenous population
+series.
 
 ## Ethnic propensity
 
-## Age-sex schedule
+The Census OD data provide flows for broad ethnic groups rather than the
+more granular ethnic classification required by the projection. As a
+result, the broad-group internal in- and out-migration were
+disaggregated to the 12 harmonised group before calculating the
+migration probabilities. Within each broad ethnic group, the
+distribution across the corresponding detailed ethnic groups was
+borrowed from the NEWETHPOP internal migration ethnic shares data. For
+REW, the 2021 census ethnic distribution was used to derive the
+population stock for the 12 harmonised ethnic groups.
 
-## Compositional inflation and indirect standardisation correction {#sec-composition-correction}
+## Age and sex migration schedules
 
-## Re-levelling against ONS estimates
+The ethnic-specific probabilities estimated above represent all-age
+migration probabilities for both sexes. To derive ethnic-age-sex
+migration probabilities, the 2021 census age-sex internal migration
+schedules were used to describe the age and sex pattern of migration.
 
-## Output
+Following @wohland2010ethnic, single-year age profiles for males and
+females were converted into ratios by dividing each age-sex-specific
+migration probability by the mean probability of the overall migration
+profile. These ratios describe the relative migration propensity at each
+sex $s$ and single year of age $x$.
+
+For out-migration, the ratio is denoted as: $$
+w^{ir}_{s,x}
+=
+\frac{
+m^{ir}_{s,x}
+}{
+\bar{m}^{ir}
+}
+$$
+
+For in-migration, the ratio is denoted as:
+
+$$
+w^{ri}_{s,x}
+=
+\frac{
+m^{ri}_{s,x}
+}{
+\bar{m}^{ri}
+}
+$$ where $w^{ir}_{s,x}$ and $w^{ri}_{s,x}$ are the relative age-sex
+migration ratios for out-migration and in-migration respectively. These
+ratios were subsequently applied to the all-age migration probabilities.
+This approach assumes the independence of OD pattern and age-sex
+pattern. In other words, ethnicity determines the overall level of
+migration while age-sex pattern determines how that level is distributed
+across sex and single year of age.
+
+## Adjustment for ethnic age-sex composition
+
+Issues arose when ethnic-specific all-age probabilities were simply
+multiplied by the age-sex pattern. The assumption that ethnicity and
+age-sex effects were independent did not hold well in this case because
+ethnic groups in Birmingham differ sharply in age structure. The
+ethnic-specific all-age probabilities already reflect each group's age
+composition. Applying it by an age-sex pattern that peaks at the same
+ages where younger ethnic groups are over-represented would inflate the
+implied flows.
+
+To solve this, a population-weighted average of the relative age-sex
+migration ratios was calculated separately for each ethnic group. For
+out-migration: $$
+\bar{W}^{ir}_{e}
+=
+\frac{
+\sum_{s,x}
+w^{ir}_{s,x}
+P^{i}_{e,s,x}
+}{
+\sum_{s,x}
+P^{i}_{e,s,x}
+}
+$$ For in-migration:
+
+$$
+\bar{W}^{ri}_{e}
+=
+\frac{
+\sum_{s,x}
+w^{ri}_{s,x}
+P^{REW}_{e,s,x}
+}{
+\sum_{s,x}
+P^{REW}_{e,s,x}
+}
+$$ where $\bar{W}^{ir}_{e}$ is the average relative age-sex
+out-migration ratio for ethnic group $e$, weighted by its Birmingham
+age-sex population. Equivalently, $\bar{W}^{ri}_{e}$ is the average
+relative age-sex in-migration ratio for ethnic group $e$ weighted by the
+REW age-sex population. To obtain the final standardised migration
+probabilities, the all-age ethnic migration probabilities were first
+divided by their corresponding population-weighted average. After that,
+the ratios (relative migration propensity) were multiplied to the
+fraction, resulting the standardised probabilities for internal-in and
+internal-out migration used in projection engine.
+
+For out-migration: $$
+m^{ir}_{e,s,x}
+=
+\frac{
+m^{ri}_{e}
+}{
+\bar{W}^{ri}_{e}
+}
+w^{ir}_{s,x}
+$$ For in-migration: $$
+m^{ri}_{e,s,x}
+=
+\frac{
+m^{ri}_{e}
+}{
+\bar{W}^{ri}_{e}
+}
+w^{ri}_{s,x}
+$$
+
+Further adjustment around internal out-migration was applied because
+some ethnic-age-sex groups produced very high out-migration
+probabilities. The highest values were concentrated among younger
+Chinese groups, which may reflect the high mobility of student-age
+population. To avoid these extremely high probabilities in generating
+implausibly large outflows, the out-migration probability was capped at
+0.75.
+
+## Re-leveling and future migration rates
+
+The Census OD data only compare individuals’usual residence one year
+before Census Day with their residence on Census Day. Therefore,
+additional movements between the two points in time which should be
+considered as internal in- and out-migration were not captured. The
+ethnic all-age probabilities were therefore re-leveled to the
+corresponding ONS 2021 migration level before being projected forward.
+
+Observed 2022-2024 data of internal migration were used to measure the
+proportional change from the 2021 level for each age and sex. In other
+words, 2021 is set as the baseline, and 2022-2024 levels were expressed
+relative to the baseline. The median proportional change between 2022
+and 2024 was used from 2025 onward and held constant for the rest of the
+projection period.
 
 \newpage
 
-# Ethnic composition of international immigration: compositional projection {#sec-immigration-ethnicity}
+# Summary of projection assumptions {#sec-assumptions}
 
-## Overview
-
-## Empirical crosswalk
-
-## Centred log-ratio (CLR) convergence structure
-
-## Policy-shock adjustments
-
-## Output
-
-\newpage
-
-# OD matrix enrichment {#sec-od-enrichment}
-
-## Overview
-
-## Complementary, not equivalent, to ODMG03EW
-
-## Identified shortfall
-
-## Recommended next step
+| Component                                   | Projection assumption                                                                                                                                                                                                                                                                                                                |
+|--------------------|----------------------------------------------------|
+| **Base population**                         | The 2021 Census population was used as the projection base by ethnic group, sex and single year of age but the data is not recorded in mid year but in 21 March 2021. No adjustment was made for the gap because the differences in count is minimal.                                                                                |
+| **Projection horizon**                      | Population was projected annually from 2022 to 2047. Ages were modelled from 0 to 100+, with 100+ treated as the terminal open-ended age group.                                                                                                                                                                                      |
+| **Ethnic groups**                           | 12 harmonised NEWETHPOP ethnic groups were used throughout the projection.                                                                                                                                                                                                                                                           |
+| **Fertility**                               | The differences in baseline fertility between ethnic groups are held constant and a common proportional change in fertility over time is applied to all ethnic group. Birmingham TFR was held at 1.66 to 2024, declined to 1.55 by 2029 and then increased gradually in line with the national fertility trajectory.                 |
+| **Newborn ethnicity**                       | Projected births were distributed using a mother-to-child ethnic transition matrix derived from MSDS rather than assigning every newborn directly to the mother's ethnic group.                                                                                                                                                      |
+| **Mortality**                               | The same mortality improvement assumption was applied to all ethnic groups, sexes and ages. Annual mortality improvement increases gradually from 0% to 1% by the 25th projection year and is then held at 1% per year.                                                                                                              |
+| **International immigration level**         | Annual immigration levels and age-sex distributions follow the ONS 2022-based SNPP migration component. Observed estimates were used for 2021 and 2022 before the SNPP series begins.                                                                                                                                                |
+| **International immigration ethnic shares** | The observed 2022 ethnic composition from GP Flag 4 was used as the starting point and was assumed to converge gradually towards the pooled 2019–2022 composition by 2028. The 2028 ethnic composition was then held constant for the rest of the projection period.                                                                 |
+| **International emigration level**          | Annual emigration levels and age-sex distributions follow the ONS 2022-based SNPP migration component.                                                                                                                                                                                                                               |
+| **International emigration ethnicity**      | Emigration was divided into British and non-British streams using the national LTIM proportion. Non-British emigration used the international immigration ethnic profile, while British emigration used Birmingham's internal out-migration ethnic profile. These ethnic compositions were held constant over the projection period. |
+| **International migration ages 90+**        | The ONS open-ended 90+ migration group was distributed equally across ages 90–100.                                                                                                                                                                                                                                                   |
+| **Internal migration ethnic differences**   | Census OD flows were used to estimate ethnic-specific all-age migration probabilities. Broad Census ethnic groups were disaggregated to the 12 harmonised groups using @wohland2010ethnic internal migration ethnic-group data.                                                                                                      |
+| **Internal migration age-sex pattern**      | A common age-sex migration pattern was derived from 2021 internal migration data and combined with the ethnic-specific all-age probabilities. The probabilities were adjusted for each ethnic group's age-sex composition before applying the age-sex pattern.                                                                       |
+| **Internal out-migration cap**              | Annual internal out-migration probabilities were capped at 0.75 to prevent extremely high probabilities from producing implausibly large outflows.                                                                                                                                                                                   |
+| **Internal migration level**                | The ethnic all-age probabilities were re-levelled to the corresponding ONS 2021 migration level before being projected forward. Observed 2022–2024 internal migration data were then used to measure proportional changes from the 2021 baseline for each age and sex.                                                               |
+| **Future internal migration**               | The median proportional change between 2022 and 2024 was used from 2025 onward and held constant for the rest of the projection period.                                                                                                                                                                                              |
+| **REW population**                          | REW was treated as an exogenous companion population rather than being co-projected within the Birmingham cohort-component model. For internal in-migration, the projected REW population stock was used as the population at risk.                                                                                                  |
 
 \newpage
 
-# Rest of England and Wales (RUK) denominator {#sec-ruk}
-
-## Overview
-
-## Approach
-
-## Post-SNPP horizon extension
-
-\newpage
-
-# Births component: base-year alignment {#sec-births}
-
-\newpage
-
-# Model integration and planned validation {#sec-integration}
-
-## Engine status
-
-## Planned validation
-
-\newpage
-
-# Summary of departures from Rees et al. (2012) {#sec-departures}
-
-\newpage
-
-# Limitations {#sec-limitations}
-
-\newpage
-
-# Planned Bayesian probabilistic extension {#sec-bayesian}
-
-\newpage
+## Results
 
 # References {.unnumbered}
 

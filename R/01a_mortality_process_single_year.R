@@ -182,7 +182,6 @@ kannisto_tail = bind_rows(tail_list)
 eth_single_qx_0_100 = bind_rows(eth_single_qx_0_89%>% mutate(mx_kan = NA_real_), kannisto_tail) %>%
   arrange(eth_code, DEC_SEX, age)
 
-
 #=======================================================================
 #project future morality rate, gradual decline for first 25 year
 # then held constant for 1  like ONS
@@ -267,5 +266,165 @@ mortality_input = eth_single_qx_0_100_future %>%
 write_csv(mortality_input, "data/processed/01_02_Birmingham_mortality_rate_0_100_projected.csv")
 
 
+
+broad_group_map = tibble::tribble(
+  ~eth_code, ~ethnic_group,          ~broad_group, ~broad_colours, 
+  "WBI",     "White British",        "White",           "blue",
+  "WHO",     "White Other",          "White",           "blue",
+  "MIX",     "Mixed",                "Mixed",           "green",
+  "IND",     "Indian",               "Asian",           "orange",
+  "PAK",     "Pakistani",            "Asian",           "orange",
+  "BAN",     "Bangladeshi",          "Asian",           "orange",
+  "CHI",     "Chinese",              "Asian",           "orange",
+  "OAS",     "Other Asian",          "Asian",           "orange",
+  "BLA",     "Black African",        "Black",           "purple",
+  "BLC",     "Black Caribbean",      "Black",           "purple",
+  "OBL",     "Other Black",          "Black",           "purple",
+  "OTH",     "Other ethnic group",   "Other",            "pink"
+)
+
+
+
+national_ref = national_lifetable %>% 
+  mutate(DEC_SEX = Gender) %>% 
+  select(DEC_SEX, age, qx)
+
+#---------------------------------------------------
+#base map
+#---------------------------------------------------
+broad_group_map = tibble::tribble(
+  ~eth_code, ~ethnic_group,          ~broad_group, ~broad_colours, 
+  "WBI",     "White British",        "White",           "blue",
+  "WHO",     "White Other",          "White",           "blue",
+  "MIX",     "Mixed",                "Mixed",           "green",
+  "IND",     "Indian",               "Asian",           "orange",
+  "PAK",     "Pakistani",            "Asian",           "orange",
+  "BAN",     "Bangladeshi",          "Asian",           "orange",
+  "CHI",     "Chinese",              "Asian",           "orange",
+  "OAS",     "Other Asian",          "Asian",           "orange",
+  "BLA",     "Black African",        "Black",           "purple",
+  "BLC",     "Black Caribbean",      "Black",           "purple",
+  "OBL",     "Other Black",          "Black",           "purple",
+  "OTH",     "Other ethnic group",   "Other",            "pink"
+)
+
+#---------------------------------------------------
+#add harmonised shades + factor ordering
+#---------------------------------------------------
+broad_group_map = broad_group_map %>% 
+  group_by(broad_colours) %>% 
+  mutate(shade_number = row_number(),
+         harmonised_colour = bcc_pal(palette = first(broad_colours))(n() + 2)[shade_number]) %>% 
+  ungroup() %>% 
+  mutate(broad_colours_hex = bcc_cols(broad_colours)) %>% 
+  mutate(broad_group = factor(broad_group, levels = c("White","Mixed","Asian","Black","Other")),
+         eth_code = factor(eth_code, levels = c(
+           "WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))) %>% 
+  arrange(broad_group, eth_code)
+#---------------------------------------------------
+#build named colour + label vectors from the broad-group map
+#---------------------------------------------------
+eth_colours = setNames(broad_group_map$harmonised_colour, broad_group_map$eth_code)
+eth_labels  = setNames(broad_group_map$ethnic_group,      broad_group_map$eth_code)
+eth_order   = levels(broad_group_map$eth_code)
+
+ggplot() +
+  geom_line(data = mortality_input %>% 
+              filter(year == 2021) %>% 
+              mutate(eth_code = factor(eth_code, levels = eth_order)),
+            aes(age, 1 - survival_probability, colour = eth_code,
+                group = interaction(eth_code, DEC_SEX)),
+            linewidth = 0.45, alpha = 0.85) +
+  geom_line(data = national_lifetable %>% mutate(DEC_SEX = Gender),
+            aes(age, qx, group = DEC_SEX),
+            colour = "grey30", linewidth = 0.9) +
+  facet_wrap(~DEC_SEX) +
+  scale_y_log10(labels = scales::label_number()) +
+  scale_colour_manual(values = eth_colours,
+                      breaks = eth_order) +
+  labs(title = "Baseline single-year mortality schedules by ethnic group and sex, Birmingham",
+       subtitle = "Ethnic rates pooled from 2022-2024 death registrations; black line: national life table 2022-2024",
+       x = "Age", y = expression(q[x]~(log~scale)),
+       colour = "Ethnic group") +
+  theme_bcc(base_size = 11)
+
+
+
+
+
+
+
+life_expectancy = mortality_input %>% 
+  arrange(year, eth_code, DEC_SEX, age) %>% 
+  group_by(year, eth_code, DEC_SEX) %>% 
+  mutate(
+    ax = case_when(age == 0        ~ 0.07,
+                   age == max(age) ~ NA_real_,
+                   TRUE            ~ 0.5),
+    qx = if_else(age == max(age), 1, 1 - exp(-mx_for_deaths)),
+    lx = 100000 * cumprod(lag(1 - qx, default = 1)),
+    dx = lx * qx,
+    Lx = if_else(age == max(age),
+                 lx / mx_for_deaths,
+                 lead(lx) + ax * dx),
+    Tx = rev(cumsum(rev(Lx))),
+    ex = Tx / lx
+  ) %>% 
+  ungroup()
+
+
+
+life_expectancy_table = life_expectancy %>% 
+  filter(
+    year %in% c(2022, 2032, 2047),
+    age == 0
+  ) %>% 
+  select(eth_code, DEC_SEX, year, ex) %>% 
+  pivot_wider(
+    names_from  = c(DEC_SEX, year),
+    values_from = ex
+  ) %>% 
+  select(
+    
+    eth_code,
+    Female_2022, Female_2032, Female_2047,
+    Male_2022, Male_2032, Male_2047
+  )
+
+life_expectancy_table %>% 
+  gt(rowname_col = "eth_code") %>% 
+  tab_spanner(
+    label   = "Female",
+    columns = c(Female_2022, Female_2032, Female_2047)
+  ) %>% 
+  tab_spanner(
+    label   = "Male",
+    columns = c(Male_2022, Male_2032, Male_2047)
+  ) %>% 
+  cols_label(
+    Female_2022 = "2022",
+    Female_2032 = "2032",
+    Female_2047 = "2047",
+    Male_2022   = "2022",
+    Male_2032   = "2032",
+    Male_2047   = "2047"
+  ) %>% 
+  tab_stubhead(label = "Ethnic group") %>% 
+  fmt_number(
+    columns  = everything(),
+    decimals = 1
+  )
+
+
+
+
+
+print(life_expectancy %>% 
+  filter(year %in% c(2022, 2032, 2047), age == 0) %>% 
+  select(eth_code, DEC_SEX, year, ex) %>% 
+  pivot_wider(names_from = year, values_from = ex,
+              names_prefix = "e0_") %>% 
+  arrange(DEC_SEX, eth_code),n=24)
+  
 
 

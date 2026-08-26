@@ -69,7 +69,16 @@ MSDS_counts = MSDS_data_filtered %>%
   group_by(eth_code_mother, age_group_5yr, YearOfBirthBaby) %>%
   summarise(n = n(), .groups = "drop")
 
-MSDS_data %>% count(YearOfBirthBaby)
+MSDS_data %>% 
+  filter(YearOfBirthBaby == 2022) %>% 
+  filter(ElectoralWardMother %in% ward_map$Ward_Code) %>% 
+  filter(AgeRPEndDate >= 15, AgeRPEndDate <= 49) %>% 
+  summarise(
+    n_total       = n(),
+    n_ethnicity   = sum(!EthnicCategoryMother %in% c("Z", "99")),
+    n_missing     = sum(EthnicCategoryMother %in% c("Z", "99")),
+    pct_missing   = n_missing / n_total * 100
+  )
 
 #---------------------------------------------------------------------
 

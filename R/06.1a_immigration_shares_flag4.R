@@ -177,7 +177,7 @@ projected_ethnic_shares_final =processed_all_flag4_2013_2022 %>%
   arrange(eth_code,year)
 
 projected_ethnic_shares_final %>% 
-  filter(year %in% c(2019:2029)) %>% 
+  filter(year %in% c(2012:2028)) %>% 
   mutate(year = as.character(year)) %>% 
   ggplot(aes(
     x = year,
@@ -232,5 +232,138 @@ write_rds(flag_4_immigration_shares, "data/processed/061a_immigration_shares.rds
 
 
 
+
+
+broad_group_map = tibble::tribble(
+  ~eth_code, ~ethnic_group,          ~broad_group, ~broad_colours, 
+  "WBI",     "White British",        "White",           "blue",
+  "WHO",     "White Other",          "White",           "blue",
+  "MIX",     "Mixed",                "Mixed",           "green",
+  "IND",     "Indian",               "Asian",           "orange",
+  "PAK",     "Pakistani",            "Asian",           "orange",
+  "BAN",     "Bangladeshi",          "Asian",           "orange",
+  "CHI",     "Chinese",              "Asian",           "orange",
+  "OAS",     "Other Asian",          "Asian",           "orange",
+  "BLA",     "Black African",        "Black",           "purple",
+  "BLC",     "Black Caribbean",      "Black",           "purple",
+  "OBL",     "Other Black",          "Black",           "purple",
+  "OTH",     "Other ethnic group",   "Other",            "pink"
+)
+
+#=========================================================
+#ethnic group order and fixed broad-group colours
+#=========================================================
+eth_order = c(
+  "WBI", "WHO", "MIX",
+  "IND", "PAK", "BAN", "CHI", "OAS",
+  "BLA", "BLC", "OBL",
+  "OTH"
+)
+
+eth_colours = c(
+  "WBI" = "blue",
+  "WHO" = "blue",
+  "MIX" = "green",
+  "IND" = "orange",
+  "PAK" = "orange",
+  "BAN" = "orange",
+  "CHI" = "orange",
+  "OAS" = "orange",
+  "BLA" = "purple",
+  "BLC" = "purple",
+  "OBL" = "purple",
+  "OTH" = "pink"
+)
+
+#=========================================================
+#ethnic group order and BCC colour shades
+#=========================================================
+eth_order = c(
+  "WBI", "WHO", "MIX",
+  "IND", "PAK", "BAN", "CHI", "OAS",
+  "BLA", "BLC", "OBL",
+  "OTH"
+)
+
+#---------------------------------------------------------
+#shade each ethnic code within its broad group
+#---------------------------------------------------------
+broad_group_map = broad_group_map %>% 
+  mutate(eth_code = factor(eth_code, levels = eth_order)) %>% 
+  arrange(eth_code) %>% 
+  group_by(broad_group, broad_colours) %>% 
+  mutate(
+    shade_number      = row_number(),
+    harmonised_colour = bcc_pal(palette = first(broad_colours))(n() + 2)[shade_number]
+  ) %>% 
+  ungroup()
+
+eth_colours = setNames(broad_group_map$harmonised_colour, broad_group_map$eth_code)
+
+#=========================================================
+#observed and projected Flag 4 ethnic shares
+#=========================================================
+flag4_observed = processed_all_flag4_2013_2022 %>% 
+  filter(XYEAR >= 2012, XYEAR <= 2022) %>% 
+  transmute(
+    year   = XYEAR,
+    eth_code,
+    share  = ethnic_shares,
+    period = "Observed"
+  )
+
+flag4_projected = projected_ethnic_shares %>% 
+  filter(year >= 2022, year <= 2028) %>% 
+  transmute(
+    year,
+    eth_code,
+    share  = projected_share,
+    period = "Projected"
+  )
+
+#---------------------------------------------------------
+#combine and set factor levels for plotting
+#---------------------------------------------------------
+flag4_plot = bind_rows(flag4_observed, flag4_projected) %>% 
+  mutate(
+    eth_code = factor(eth_code, levels = eth_order),
+    period   = factor(period, levels = c("Observed", "Projected"))
+  ) %>% 
+  arrange(eth_code, year)
+
+write_rds(flag4_plot, "data/processed/Flag4_projection_plot_data.rds")
+
+#---------------------------------------------------------
+#plot observed vs projected shares
+#---------------------------------------------------------
+flag4_plot %>% 
+  ggplot(aes(
+    x        = year,
+    y        = share,
+    colour   = eth_code,
+    linetype = period,
+    group    = interaction(eth_code, period)
+  )) +
+  geom_line(linewidth = 1) +
+  geom_point(data = ~ filter(.x, period == "Observed"), size = 1.8) +
+  geom_vline(xintercept = 2022, linetype = "dotted", linewidth = 0.6) +
+  scale_colour_manual(
+    values = eth_colours,
+    breaks = eth_order,
+    labels = broad_group_map$ethnic_group[match(eth_order, broad_group_map$eth_code)]
+  ) +
+  scale_linetype_manual(values = c("Observed" = "solid", "Projected" = "dashed")) +
+  scale_x_continuous(breaks = 2012:2028) +
+  scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+  labs(
+    title    = "Estimated ethnic composition of international immigration",
+    subtitle = "Observed Flag 4 estimates and projected convergence, Birmingham",
+    x        = "Year",
+    y        = "Share of international immigrants",
+    colour   = "Ethnic group",
+    linetype = NULL
+  ) +
+  theme_bcc() +
+  theme(axis.text.x = element_text(angle = 45))
 
 
