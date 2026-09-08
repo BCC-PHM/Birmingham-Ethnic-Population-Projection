@@ -28,20 +28,20 @@ fertility = read_csv(inputfiles[2]) %>%
 
 
 #load the baby eth matrix 
-birth_transition_matrix = read_csv(inputfiles[3]) %>%
+birth_transition_matrix = read_csv(inputfiles[4]) %>%
   select(eth_code_mother, eth_code_baby, percentage)
 
 
 mortality = read_csv(inputfiles[1]) %>%
   rename(sex = DEC_SEX)
 
-internal_migration = read_csv(inputfiles[4]) %>%
+internal_migration = read_csv(inputfiles[5]) %>%
   rename(age = Age)
 
-projected_REW = read_rds(inputfiles[8]) %>%
+projected_REW = read_rds(inputfiles[9]) %>%
   rename(age = Age)
 
-international_immigration = read_csv(inputfiles[5]) %>%
+international_immigration = read_csv(inputfiles[6]) %>%
   transmute(
     year = Year,
     eth_code,
@@ -50,7 +50,7 @@ international_immigration = read_csv(inputfiles[5]) %>%
     international_immigrants = immigration_count
   )
 
-international_emigration = read_csv(inputfiles[7]) %>%
+international_emigration = read_csv(inputfiles[8]) %>%
   transmute(
     year = Year,
     eth_code,
@@ -61,29 +61,50 @@ international_emigration = read_csv(inputfiles[7]) %>%
 
 
 #Initialise the 2021 starting population once
-bham_eth_pop = read_rds(inputfiles[9])
-
-start_population = bham_eth_pop %>%
-  transmute(
-    year = 2021,
-    eth_code = as.character(eth_code),
-    sex = as.character(SEX),
-    age = as.integer(Age),
-    population = Observation
-  ) %>%
-  arrange(eth_code, sex, age)
+bham_eth_pop = read_rds(inputfiles[10])
 
 
-#Initialise output lists
-projection_list = list()
-birth_projection_list = list()
-death_projection_list = list()
-migration_projection_list = list()
-component_projection_list = list()
 
 
-projection_list[["2021"]] = start_population
+run_projection = function(scenario = "EF") {  #"ER_2022" or "ER_20230"
+  
+  
+  #---------------------------------------------------------
+  # initialise starting population
+  #---------------------------------------------------------
+  start_population = bham_eth_pop %>%
+    transmute(
+      year = 2021,
+      eth_code = as.character(eth_code),
+      sex = as.character(SEX),
+      age = as.integer(Age),
+      population = Observation
+    ) %>%
+    arrange(eth_code, sex, age)
+  
+  #---------------------------------------------------------
+  # initialise outputs
+  #---------------------------------------------------------
+  projection_list = list()
+  birth_projection_list = list()
+  death_projection_list = list()
+  migration_projection_list = list()
+  component_projection_list = list()
+  
+  #---------------------------------------------------------
+  # initialise frozen emigration rates
+  #---------------------------------------------------------
+  emigration_rate_2022 = NULL
+  emigration_rate_2030 = NULL
+  
+  
+  projection_list[["2021"]] = start_population
+  
+  #=========================================================
+  # cohort-component projection
+  #=========================================================
 
+  
 for (current_year in 2021:2046) {
 
   projection_year = current_year + 1
@@ -208,6 +229,7 @@ for (current_year in 2021:2046) {
   
 # ==========================================================
 # International emigration(flows)
+  # International emigration(rates)
 # ========================================================== 
   
  international_emigration_current = international_emigration%>%
@@ -219,15 +241,78 @@ for (current_year in 2021:2046) {
       .groups = "drop"
     )
   
+  
+  #---------------------------------------------------------
+  # 2022 baseline emigration rate
+  #---------------------------------------------------------
+  if (scenario == "ER_2022" && projection_year == 2022){
+  
+    emigration_rate_2022 = international_emigration_current%>%
+    filter(year == projection_year) %>% 
+    left_join(population_before_migration, by = c("year", "eth_code", "sex", "age")) %>% 
+    mutate( international_emigrants = replace_na(international_emigrants, 0),
+            emigration_rate_2022 = if_else(population > 0,
+                                           international_emigrants / population,
+                                           0)) %>% 
+      select(eth_code,sex,age, emigration_rate_2022)
+  }
+  if (scenario == "ER_2030" && projection_year == 2030) {
+  
+    emigration_rate_2030 = international_emigration_current%>%
+      filter(year == projection_year) %>% 
+      left_join(population_before_migration, by = c("year", "eth_code", "sex", "age")) %>% 
+      mutate( international_emigrants = replace_na(international_emigrants, 0),
+              emigration_rate_2030 = if_else(population > 0,
+                                             international_emigrants / population,
+                                             0)) %>% 
+      select(eth_code,sex,age, emigration_rate_2030)
+    
+  }
+  
+  # ==========================================================
+  # Emigration scenario
+  # ==========================================================
+  
+  if(scenario == "EF"){
+
   within_country_survivors_bham = population_before_migration %>%  
     left_join( international_emigration_current,
                by = c("year", "eth_code", "sex", "age"),
                relationship = "one-to-one")%>%
     mutate(
-      international_emigrants =
-        replace_na(international_emigrants, 0),
-      WS_B = population - international_emigrants)
+      international_emigrants = replace_na(international_emigrants, 0),
+      WS_B = population - international_emigrants )
+  
+  } else if (scenario == "ER_2022") {
     
+    within_country_survivors_bham = population_before_migration %>%  
+      left_join( international_emigration_current,
+                 by = c("year", "eth_code", "sex", "age"),
+                 relationship = "one-to-one")%>%
+      left_join(emigration_rate_2022, by = c("age", "sex", "eth_code")) %>% 
+      mutate(
+        international_emigrants = population*emigration_rate_2022,
+        WS_B = population - international_emigrants )
+    
+  } else if (scenario == "ER_2030") {
+    if(projection_year < 2030) {
+      
+      within_country_survivors_bham = population_before_migration %>%
+        left_join(
+          international_emigration_current,
+          by = c("year", "eth_code", "sex", "age")) %>%
+        mutate(international_emigrants = replace_na(international_emigrants, 0),
+               WS_B = population - international_emigrants)
+      
+    } else{
+      within_country_survivors_bham = population_before_migration %>%
+        left_join(emigration_rate_2030, by = c("age", "sex", "eth_code")) %>% 
+        mutate(
+          emigration_rate_2030 = replace_na(emigration_rate_2030, 0),
+          international_emigrants = population * emigration_rate_2030,
+          WS_B = population - international_emigrants )
+    }
+  }
   
 # ============================================================
 #Internal out-migration (constant rates)
@@ -479,9 +564,26 @@ annual_components = full_component_projection %>%
     .groups = "drop"
   )
 
+CCM_result_list = list(
+  full_component_projection = full_component_projection,
+  full_population_projection = full_population_projection,
+  annual_components = annual_components,
+  emigration_rate_2022 = emigration_rate_2022,
+  emigration_rate_2030 = emigration_rate_2030)
 
+return(CCM_result_list)
 
-CCM_result_list = list(full_component_projection, full_population_projection)
+}
+
+EF = run_projection("EF")
+
+ER_2022 = run_projection("ER_2022")
+
+ER_2030 =run_projection("ER_2030")
+
+CCM_result_list = list(EF,ER_2022, ER_2030)
+
+names(CCM_result_list) = c("EF","ER_2022","ER_2030" )
 
 saveRDS(CCM_result_list, file = "data/processed/CCM_result_list.rds")
 

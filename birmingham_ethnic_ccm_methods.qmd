@@ -1,5 +1,5 @@
 ---
-title: "Ethnic Populaiton Projection for Birmingham"
+title: "Ethnic Population Projection for Birmingham"
 author: "Chung Au-Yeung"
 csl   : "csl/apa.csl"
 bibliography: "references.bib"
@@ -165,6 +165,23 @@ mid-year estimate. Annual projections are then generated from 2022 to
 estimated resident population after accounting the components between
 2021 and 2022.
 
+## Scenarios for projections
+
+Three projection scenarios were produced to compare and examine the
+sensitivity mainly on the international emigration. The benchmark
+emigration flow projection (B-EF) directly uses emigration flow, meaning
+that a fixed number for each projection year is being taken away from
+the model. The benchmark emigration rates projection (B-ER2022) uses the
+emigration flow in the first projection year to clacualte the ethnic,
+sex, age emigration rates and are held constant throughout the
+projection year. This allow the number of emigrants to vary to changes
+in size of the population at risk. The Long-term emigration rates
+projection (LT-ER2030) retains the annual emigration-flow assumptions up
+to 2029. The ethnic, sex, age emigration rates are then calculated using
+the 2030 emigration flows and population at risk and held constant from
+2030 to 2047. This allow rates to be based on longer-term emigration
+assumptions rather than the initial projection year.
+
 # The projection model {#sec-projectionmodel}
 
 The Birmingham ethnic population projection uses the cohort-component
@@ -308,32 +325,100 @@ departs from @wohland2010ethnic.
 
 After ageing, international emigration is substrated from the total
 survivors $TS^{i}_{e,s,x,t}$ in Birmingham population. Unlike
-@wohland2010ethnic, direct flows of emigration from ONS SNPP is used, no
-survivorship adjustment is applied. The population surviving within the
-country is therefore:
+@wohland2010ethnic, the B-EF projection uses direct flows of emigration
+from ONS SNPP is used, no survivorship adjustment is applied. The
+emigration-rate scenarios described below retain this projection timing
+and convert these flows into population-dependent emigration rates.
+
+International emigration differs according to the projection scenario.
+Let $E^{i,c}_{e,s,x,t}$ denote the emigration applied under scenario
+$c$, where
+$c \in \{\mathrm{B\text{-}EF},\mathrm{B\text{-}ER2022}, \mathrm{LT\text{-}ER2030}\}$.
+
+**For the B-EF scenario**:
 
 $$
-WS^{i}_{e,s,x,t}
+E^{i,\mathrm{B\text{-}EF}}_{e,s,x,t}
+=
+E^{i,\mathrm{flow}}_{e,s,x,t}
+$$ {#eq-emigration-bef}
+
+**For the B-ER2022 scenario**:
+
+$$
+E^{i,\mathrm{B\text{-}ER2022}}_{e,s,x,t}
+=
+r^{i,2022}_{e,s,x}
+TS^{i}_{e,s,x,t},
+\qquad t \geq 2022
+$$ {#eq-emigration-ber2022}
+
+The ethnic, age, sex emigration rates are calculated using the first
+projection year. The rate is then held constant throughout the
+projection period: $$
+E^{i,\mathrm{ER2022}}_{e,s,x,t}
+=
+r^{i,2022}_{e,s,x}
+TS^{i}_{e,s,x,t},
+\qquad t \geq 2022
+$$ {#eq-emigration-er2022}
+
+**For the LT-ER2030 scenario**:
+
+$$
+E^{i,\mathrm{LT\text{-}ER2030}}_{e,s,x,t}
+=
+\begin{cases}
+E^{i,\mathrm{flow}}_{e,s,x,t},
+& t < 2030, \\[6pt]
+r^{i,2030}_{e,s,x}
+TS^{i}_{e,s,x,t},
+& t \geq 2030.
+\end{cases}
+$$ {#eq-emigration-lter2030}
+
+The emigration flows are used until 2029. The ethnic, age, sex
+emigration rates are then calculated using the 2030 emigration flow and
+population at risk. The emigration component under ER2030 is therefore:
+
+$$
+E^{i,\mathrm{ER2030}}_{e,s,x,t}
+=
+\begin{cases}
+E^{i,\mathrm{flow}}_{e,s,x,t},
+& t < 2030, \\[6pt]
+r^{i,2030}_{e,s,x}
+TS^{i}_{e,s,x,t},
+& t \geq 2030.
+\end{cases}
+$$ {#eq-emigration-er2030}
+
+The population surviving within the country under scenario $c$ is then
+given by:
+
+$$
+WS^{i,c}_{e,s,x,t}
 =
 TS^{i}_{e,s,x,t}
 -
-E^{i}_{e,s,x,t}
+E^{i,c}_{e,s,x,t}
 $$ {#eq-within-country-survivors}
 
-where $WS^{i}_{e,s,x,t}$ is the population surviving within the country
-after mortality and international emigration.
+where $WS^{i,c}_{e,s,x,t}$ is the population surviving within the
+country after mortality and international emigration under projection
+scenario $c$.
 
-Internal out-migration $M^{ir}_{e,s,x,t}$ from zone $i$ to the REW $r$
+Internal out-migration $M^{ir,c}_{e,s,x,t}$ from zone $i$ to the REW $r$
 is then calculated by multiplying the corresponding internal
 out-migration probability (detailed in @sec-internal-migration)
-$m^{ir}_{e,s,x,t}$ to population surviving within the country
-$WS^{i}_{e,s,x,t}$ is given as:
+$m^{ir, c}_{e,s,x,t}$ to population surviving within the country
+$WS^{i, c}_{e,s,x,t}$ is given as:
 
 $$
-M^{ir}_{e,s,x,t}
+M^{ir,c}_{e,s,x,t}
 =
 m^{ir}_{e,s,x,t}
-WS^{i}_{e,s,x,t}
+WS^{i,c}_{e,s,x,t}
 $$ {#eq-internal-out}
 
 Internal in-migration $M^{ri}_{e,s,x,t}$ from REW $r$ to zone $i$ is
@@ -353,18 +438,20 @@ explanation is described in @sec-internal-migration.
 ## Final population
 
 The components in @eq-projection-accounting can now be substituted with
-the component-specific equations defined above. The final population for
-each ethnic group, sex and age is given by:
+the component-specific equations defined above. The final population
+under projection scenario $c$ is given by:
 
 $$
 \begin{aligned}
-P^{end,i}_{e,s,x,t}
+P^{end,i,c}_{e,s,x,t}
 ={}&
-\underbrace{P^{start,i}_{e,s,x,t}
+\underbrace{
+P^{start,i}_{e,s,x,t}
 -
 q^{i}_{e,s,x,t}P^{start,i}_{e,s,x,t}
 -
-E^{i}_{e,s,x,t}}_{\text{within-country survivors}} \\[6pt]
+E^{i,c}_{e,s,x,t}
+}_{\text{within-country survivors}} \\[6pt]
 &-
 \underbrace{
 m^{ir}_{e,s,x,t}
@@ -373,13 +460,17 @@ P^{start,i}_{e,s,x,t}
 -
 q^{i}_{e,s,x,t}P^{start,i}_{e,s,x,t}
 -
-E^{i}_{e,s,x,t}
+E^{i,c}_{e,s,x,t}
 \right)
 }_{\text{internal out-migration}} \\[6pt]
 &+
-\underbrace{m^{ri}_{e,s,x,t}P^{REW}_{e,s,x,t}}_{\text{internal in-migration}}
+\underbrace{
+m^{ri}_{e,s,x,t}P^{REW}_{e,s,x,t}
+}_{\text{internal in-migration}}
 +
-\underbrace{I^{i}_{e,s,x,t}}_{\text{international immigration}}
+\underbrace{
+I^{i}_{e,s,x,t}
+}_{\text{international immigration}} .
 \end{aligned}
 $$ {#eq-final-pop}
 
@@ -914,6 +1005,24 @@ broad_group_map = broad_group_map %>%
          eth_code = factor(eth_code, levels = c(
            "WBI","WHO","MIX","IND","PAK","BAN","CHI","OAS","BLA","BLC","OBL","OTH"))) %>% 
   arrange(broad_group, eth_code)
+
+#---------------------------------------------------
+#widen shade spacing across the palette ramp
+#---------------------------------------------------
+broad_group_map = broad_group_map %>% 
+  group_by(broad_colours) %>% 
+  mutate(shade_number = row_number(),
+         harmonised_colour = bcc_pal(palette = first(broad_colours))(9)[round(seq(2, 9, length.out = n()))][shade_number]) %>% 
+  ungroup()
+
+#---------------------------------------------------
+#named colour vector for scale_*_manual
+#---------------------------------------------------
+harmonised_colour_values = broad_group_map %>% 
+  distinct(eth_code, harmonised_colour) %>% 
+  mutate(eth_code = as.character(eth_code)) %>% 
+  tibble::deframe()
+
 #---------------------------------------------------
 #build named colour + label vectors from the broad-group map
 #---------------------------------------------------
@@ -1187,72 +1296,72 @@ flag4_plot = read_rds(
   here::here("data", "processed", "Flag4_projection_plot_data.rds"))
 
 
-broad_group_map = tibble::tribble(
-  ~eth_code, ~ethnic_group,          ~broad_group, ~broad_colours, 
-  "WBI",     "White British",        "White",           "blue",
-  "WHO",     "White Other",          "White",           "blue",
-  "MIX",     "Mixed",                "Mixed",           "green",
-  "IND",     "Indian",               "Asian",           "orange",
-  "PAK",     "Pakistani",            "Asian",           "orange",
-  "BAN",     "Bangladeshi",          "Asian",           "orange",
-  "CHI",     "Chinese",              "Asian",           "orange",
-  "OAS",     "Other Asian",          "Asian",           "orange",
-  "BLA",     "Black African",        "Black",           "purple",
-  "BLC",     "Black Caribbean",      "Black",           "purple",
-  "OBL",     "Other Black",          "Black",           "purple",
-  "OTH",     "Other ethnic group",   "Other",            "pink"
-)
-
-#=========================================================
-#ethnic group order and fixed broad-group colours
-#=========================================================
-eth_order = c(
-  "WBI", "WHO", "MIX",
-  "IND", "PAK", "BAN", "CHI", "OAS",
-  "BLA", "BLC", "OBL",
-  "OTH"
-)
-
-eth_colours = c(
-  "WBI" = "blue",
-  "WHO" = "blue",
-  "MIX" = "green",
-  "IND" = "orange",
-  "PAK" = "orange",
-  "BAN" = "orange",
-  "CHI" = "orange",
-  "OAS" = "orange",
-  "BLA" = "purple",
-  "BLC" = "purple",
-  "OBL" = "purple",
-  "OTH" = "pink"
-)
-
-#=========================================================
-#ethnic group order and BCC colour shades
-#=========================================================
-eth_order = c(
-  "WBI", "WHO", "MIX",
-  "IND", "PAK", "BAN", "CHI", "OAS",
-  "BLA", "BLC", "OBL",
-  "OTH"
-)
-
-#---------------------------------------------------------
-#shade each ethnic code within its broad group
-#---------------------------------------------------------
-broad_group_map = broad_group_map %>% 
-  mutate(eth_code = factor(eth_code, levels = eth_order)) %>% 
-  arrange(eth_code) %>% 
-  group_by(broad_group, broad_colours) %>% 
-  mutate(
-    shade_number      = row_number(),
-    harmonised_colour = bcc_pal(palette = first(broad_colours))(n() + 2)[shade_number]
-  ) %>% 
-  ungroup()
-
-eth_colours = setNames(broad_group_map$harmonised_colour, broad_group_map$eth_code)
-
+# broad_group_map = tibble::tribble(
+#   ~eth_code, ~ethnic_group,          ~broad_group, ~broad_colours, 
+#   "WBI",     "White British",        "White",           "blue",
+#   "WHO",     "White Other",          "White",           "blue",
+#   "MIX",     "Mixed",                "Mixed",           "green",
+#   "IND",     "Indian",               "Asian",           "orange",
+#   "PAK",     "Pakistani",            "Asian",           "orange",
+#   "BAN",     "Bangladeshi",          "Asian",           "orange",
+#   "CHI",     "Chinese",              "Asian",           "orange",
+#   "OAS",     "Other Asian",          "Asian",           "orange",
+#   "BLA",     "Black African",        "Black",           "purple",
+#   "BLC",     "Black Caribbean",      "Black",           "purple",
+#   "OBL",     "Other Black",          "Black",           "purple",
+#   "OTH",     "Other ethnic group",   "Other",            "pink"
+# )
+# 
+# #=========================================================
+# #ethnic group order and fixed broad-group colours
+# #=========================================================
+# eth_order = c(
+#   "WBI", "WHO", "MIX",
+#   "IND", "PAK", "BAN", "CHI", "OAS",
+#   "BLA", "BLC", "OBL",
+#   "OTH"
+# )
+# 
+# eth_colours = c(
+#   "WBI" = "blue",
+#   "WHO" = "blue",
+#   "MIX" = "green",
+#   "IND" = "orange",
+#   "PAK" = "orange",
+#   "BAN" = "orange",
+#   "CHI" = "orange",
+#   "OAS" = "orange",
+#   "BLA" = "purple",
+#   "BLC" = "purple",
+#   "OBL" = "purple",
+#   "OTH" = "pink"
+# )
+# 
+# #=========================================================
+# #ethnic group order and BCC colour shades
+# #=========================================================
+# eth_order = c(
+#   "WBI", "WHO", "MIX",
+#   "IND", "PAK", "BAN", "CHI", "OAS",
+#   "BLA", "BLC", "OBL",
+#   "OTH"
+# )
+# 
+# #---------------------------------------------------------
+# #shade each ethnic code within its broad group
+# #---------------------------------------------------------
+# broad_group_map = broad_group_map %>% 
+#   mutate(eth_code = factor(eth_code, levels = eth_order)) %>% 
+#   arrange(eth_code) %>% 
+#   group_by(broad_group, broad_colours) %>% 
+#   mutate(
+#     shade_number      = row_number(),
+#     harmonised_colour = bcc_pal(palette = first(broad_colours))(n() + 2)[shade_number]
+#   ) %>% 
+#   ungroup()
+# 
+# eth_colours = setNames(broad_group_map$harmonised_colour, broad_group_map$eth_code)
+# 
 
 #---------------------------------------------------------
 #plot observed vs projected shares
@@ -1607,7 +1716,7 @@ projection period.
 # Summary of projection assumptions {#sec-assumptions}
 
 | Component                                   | Projection assumption                                                                                                                                                                                                                                                                                                                |
-|--------------------|----------------------------------------------------|
+|-------------------------|----------------------------------------------|
 | **Base population**                         | The 2021 Census population was used as the projection base by ethnic group, sex and single year of age but the data is not recorded in mid year but in 21 March 2021. No adjustment was made for the gap because the differences in count is minimal.                                                                                |
 | **Projection horizon**                      | Population was projected annually from 2022 to 2047. Ages were modelled from 0 to 100+, with 100+ treated as the terminal open-ended age group.                                                                                                                                                                                      |
 | **Ethnic groups**                           | 12 harmonised NEWETHPOP ethnic groups were used throughout the projection.                                                                                                                                                                                                                                                           |
@@ -1628,7 +1737,1108 @@ projection period.
 
 \newpage
 
-## Results
+# Results
+
+## Overall population projections under alternative emigration scenarios
+
+Across all three emigration scenarios, Birmingham’s population is
+projected to increase over the projection period. The differences in
+these three scenarios are minimal (@fig-X101-Overall). The projected
+population by 2047 reaches approximately 1,261,990 under B-EF, compared
+with 1,255,962 under LT-ER2030 and approximately 1,250,000 under
+B-ER2022.
+
+```{r}
+#| label: fig-X101-Overall
+#| fig-cap: "Birmingham Population Projections under Alternative \nEmigration Scenarios"
+#| fig-width: 10
+#| fig-height: 7
+#| warning: false
+#| message: false
+
+
+CCM_result_list = readRDS(here::here("data", "processed", "CCM_result_list.rds"))
+
+
+for (i in seq_along(CCM_result_list)){
+    
+  full_component_projection = CCM_result_list[[i]]$full_component_projection
+  
+  CCM_result_list[[i]]$annual_components = full_component_projection %>%
+    group_by(year) %>%
+    summarise(
+      births = sum(births, na.rm = TRUE),
+      deaths = sum(total_deaths, na.rm = TRUE),
+      
+      natural_change =births - deaths,
+      
+      internal_in =sum(internal_in_migrants, na.rm = TRUE),
+      
+      internal_out =sum(internal_out_migrants, na.rm = TRUE),
+      
+      net_internal =internal_in - internal_out,
+      
+      international_in =sum(international_immigrants, na.rm = TRUE),
+      
+      international_out =sum(international_emigrants, na.rm = TRUE),
+      
+      net_international =international_in - international_out,
+      
+      projected_change =natural_change + net_internal +net_international,
+      
+      end_population = sum(end_population, na.rm = TRUE),
+      start_pop = end_population-projected_change,
+      
+      .groups = "drop"
+    )
+  
+  
+  CCM_result_list[[i]]$annual_components_byeth = full_component_projection %>%
+    group_by(year,eth_code) %>%
+    summarise(
+      births = sum(births, na.rm = TRUE),
+      deaths = sum(total_deaths, na.rm = TRUE),
+      
+      natural_change =births - deaths,
+      
+      internal_in =sum(internal_in_migrants, na.rm = TRUE),
+      
+      internal_out =sum(internal_out_migrants, na.rm = TRUE),
+      
+      net_internal =internal_in - internal_out,
+      
+      international_in =sum(international_immigrants, na.rm = TRUE),
+      
+      international_out =sum(international_emigrants, na.rm = TRUE),
+      
+      net_international =international_in - international_out,
+      
+      projected_change =natural_change + net_internal +net_international,
+      
+      end_population = sum(end_population, na.rm = TRUE),
+      start_pop = end_population-projected_change,
+      
+      .groups = "drop"
+    )
+  
+}
+
+
+plot_results_10.1 = bind_rows(
+  "B-EF"      = CCM_result_list[[1]]$annual_components,
+  "B-ER2022"  = CCM_result_list[[2]]$annual_components,
+  "LT-ER2030" = CCM_result_list[[3]]$annual_components,
+  .id = "scenario"
+) %>% 
+  mutate(scenario = factor(scenario, levels = c("B-EF", "B-ER2022", "LT-ER2030")),
+         year = as.character(year)) %>% 
+  ggplot(aes(x=year,y=end_population, group = scenario, color = scenario))+
+  geom_line(size=1)+
+  scale_y_continuous(limits = c(1150000,1300000))+
+  theme_bcc(base_size = 15)+
+  scale_colour_bcc(palette = "multi")+
+  theme( axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Birmingham Population Projections under \nAlternative Emigration Scenarios")+
+  labs(y="Population",
+       color = "Scenarios")+
+  theme(legend.title = element_text(color = bcc_cols("black")))
+
+
+
+plot_results_10.1 
+
+
+
+```
+
+<!--#might add a table here  -->
+
+The differences arise from how international emigration is
+projected.Under B-EF, a fixed number is being substracted from the
+projected population for each projection year and thus, the number of
+emigrants does not respond to changes in proportion to the projection
+population. UIn the B-ER2022 scenario, the emigration rate is fixed at
+2022 rate such that it does not capture the fall in emigrants in the
+earler projection years. For LT-ER2030, earlier projection years is
+projected as flow until 2030 and therefore, the reduction in earlier
+years is captured while after 2030, a constant rate is used so that the
+changes are in proportion to the projected population.
+
+For the rest of the results reporting, LT-ER2030 is adopted as the
+principal projection scenario. THis scenario retains the annual
+emigration-flow assumptions through the earlier projection period and
+only switches to the constant rate once the project year reaches 2030.
+The relatively small difference between these scenarios implies that the
+choice does not materially alter the overall proejction trajectory.
+
+## Changes in Birmingham's ethnic composition
+
+### White and non-White population
+
+The ethnic composition of Birmingham is projected to become increasingly
+ethnic-diverse over the projection period. @fig-X102-linechart and
+@tbl-nonwhite-share show the projected population by White and Non-White
+ethnic group in count and percentage share. Birmingham's Non-White
+ethnic group represent 52.8% of the end population in 2022 and is
+projected to increase to 59.6% in 2032 and 64.2% by 2047. In contrast,
+the White population is projected to decline from a share of 47.2% in
+2022 to 40.4% in 2032 and finally reaches 35.8% by 2047.
+
+```{r}
+#| label: fig-X102-linechart
+#| fig-cap: "Projected ethnic composition of Birmingham"
+#| fig-width: 10
+#| fig-height: 7
+#| warning: false
+#| message: false
+
+
+CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  mutate(nonwhite = case_when(eth_code %in% c("WBI", "WHO") ~ "White",
+                              TRUE ~ "Non-White")) %>% 
+  group_by(year, nonwhite) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>% 
+  mutate(year = as.character(year)) %>% 
+  ggplot(aes(x=year,y=end_population, colour=nonwhite,group=nonwhite)) +
+  geom_line(size=1)+
+  theme_bcc(base_size = 15)+
+  scale_colour_bcc(palette = "multi")+
+  scale_y_continuous(limits = c(10000,900000))+
+  theme( axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Projected ethnic composition of Birmingham")+
+  labs(y="Population",
+       color = "Ethnic group")+
+  theme(legend.title = element_text(color = bcc_cols("black")))
+  
+
+```
+
+| Ethnic group |            2022 |            2032 |            2047 |
+|--------------|----------------:|----------------:|----------------:|
+| Non-White    | 611,935 (52.8%) | 716,925 (59.6%) | 805,903 (64.2%) |
+| White        | 547,041 (47.2%) | 485,463 (40.4%) | 450,059 (35.8%) |
+
+: Birmingham population by broad ethnic group, count (share)
+{#tbl-nonwhite-share}
+
+@fig-X102-pyramid shows how these changes are distributed across age and
+sex and how these two populations differ in age structures. In terms of
+absolute population count, the Non-White population dominates in the
+younger age groups in 2022 and continue to be the largest by 2047.
+Conversely, it is observed that the population of younger age groups in
+White group is continuously shrinking.
+
+The percentage distributions provide a clearer comparison of the age
+profile within each ethnic grouping. In 2022, Non-White population is
+more concentrated among children, teenagers and young adults, whereas
+White population is concentrated among older adults, particularly around
+age 50 and above. This pattern remains till 2032, although younger
+Non-White cohorts have moved to working ages. By 2047, the percentage
+shares of age profile look similar for both ethnic groups while White
+population still has a larger proportion in older ages.
+
+Overall, the projections indicate that Birmingham is getting more
+ethnically diverse, Non-White population is accompanied by the aging of
+the current teenagers and younger adults and a higher proportion of
+children of the Non-White population than the White population by 2047.
+
+```{r}
+#| label: fig-X102-pyramid
+#| fig-cap: "Projected population by age, sex and ethnicity grouping for Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+
+plot_results_10.2 = CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,age,sex,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  mutate(nonwhite = case_when(eth_code %in% c("WBI", "WHO") ~ "White",
+                              TRUE ~ "Non-White")) %>% 
+  group_by(year,age,sex, nonwhite) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>%
+  mutate(age = ifelse(age>=90, "90+",as.character(age)),
+         age = factor(age, levels=c(as.character(0:89), "90+")),
+         sex = factor(sex, levels=c("Male", "Female"))) %>% 
+  select(year,age,sex,nonwhite,end_population) %>% 
+  mutate(end_population = ifelse(sex == "Male",
+                                 end_population*-1,
+                                 end_population)) %>% 
+  filter(year %in% c(2022,2032,2047)) %>% 
+  ggplot(aes(y=age, x=end_population,fill=nonwhite))+
+  geom_col(width = 0.7)+
+  annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
+  annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
+  facet_wrap(~year)+
+  scale_x_continuous(labels = function(x) scales::comma(abs(x)))+
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+  scale_fill_bcc(palette = "multi")+
+  ggtitle("Projected population by age and sex and ethnicity grouping for Birmingham")+
+  labs(subtitle = "Projections for 2022, 2032 and 2047",
+       x="population")+
+  theme_bcc(base_size = 15,
+            gridline_x = F)+
+  theme(legend.position  = "bottom",
+        plot.margin      = margin(5, 20, 5, 20),
+        panel.spacing.x  = unit(1.2, "lines"),
+        axis.text.x      = element_text(size = 11),
+        strip.background = element_blank(),
+        strip.text       = element_text(face = "bold", hjust = 0.5))
+
+
+
+overall_profile = CCM_result_list[[3]]$full_component_projection %>% 
+  group_by(year, sex,age) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  mutate(
+    nonwhite = "All") %>% 
+  group_by(year, age, sex, nonwhite) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, nonwhite) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047))
+
+
+
+
+plot_results_10.2_pct = CCM_result_list[[3]]$full_component_projection %>% 
+  group_by(year, age, sex, eth_code) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  mutate(
+    nonwhite = case_when(
+      eth_code %in% c("WBI", "WHO") ~ "White",
+      TRUE                          ~ "Non-White"
+    )
+  ) %>% 
+  group_by(year, age, sex, nonwhite) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, nonwhite) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  ggplot(aes(y = age, x = pop_share)) +
+  geom_col(data = overall_profile, aes(fill = nonwhite), width = 0.7) +
+  geom_step(aes(colour = nonwhite, group = interaction(nonwhite, sex)),
+            orientation = "y", linewidth = 0.5) +
+  annotate("text", x = -Inf, y = Inf, label = "Male", hjust = -0.3, vjust = 1.2, size = 3.5) +
+  annotate("text", x = Inf, y = Inf, label = "Female", hjust = 1.3, vjust = 1.2, size = 3.5) +
+  facet_wrap(~year) +
+  scale_x_continuous(labels = function(x) abs(x)) +
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+")) +
+  scale_colour_bcc(palette = "multi")+
+  scale_fill_manual(values = c("All" = "grey80"),labels = "All", name = NULL)+
+  labs(
+    x = "Share of ethnic group population (%)"
+  ) +
+  theme_bcc(base_size = 15, gridline_x = F) +
+  theme(
+    legend.position  = "bottom",
+    plot.margin      = margin(5, 20, 5, 20),
+    panel.spacing.x  = unit(1.2, "lines"),
+    axis.text.x      = element_text(size = 11),
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold", hjust = 0.5)
+  )
+
+plot_results_10.2/plot_results_10.2_pct
+
+```
+
+### Broad ethnic groups
+
+The White and Non-White ethnic classification provides the first
+insights of the overall change in direction. To explore this in more
+detail, the projection can also be examined across the five broad ethnic
+group categories.
+
+@fig-X104-broadlinechart and @tbl-broad-eth-share show the projected
+population by the five broad ethnic groups in count and percentage
+share. It is observed that Mixed ethnic group maintains a relatively
+stable percentage share of the total population, while Other and Black
+ethnic groups record modest increases in population share over the
+projection period. The most obvious changes are observed among White and
+Asian ethnic groups. In 2022, White ethnic group represents 47.2% as the
+largest ethnic group in Birmingham and is projected to decline steadily
+over the period and reaching 35.8% in 2047. In contrast, Asian ethnic
+group accounts for 32% in 2022 as the second largest ethnic group in
+2022 and is projected to increase over the period and reaching 40% in
+2047.\
+
+The projected Asian population overtakes the White population at around
+2028, becoming the Birmingham's largest broad ethnic group for the
+remainder of the projection period. This represents one of the most
+significant compositional changes identified in the projection.
+
+```{r}
+#| label: fig-X104-broadlinechart
+#| fig-cap: "Projected broad ethnic composition of Birmingham"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+options(scipen = 999)
+
+CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>% 
+  group_by(year, broad_eth) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>% 
+  mutate(year = as.character(year)) %>% 
+  ggplot(aes(x=year,y=end_population, colour=broad_eth,group=broad_eth)) +
+  geom_line(size=1)+
+  theme_bcc(base_size = 15)+
+  scale_colour_manual(values = c("White" = "#00A9E0",
+                                 "Mixed" = "#75BC22",
+                                 "Asian" = "#DC582A",
+                                 "Black" = "#84329B",
+                                 "Other" = "#D00070")) +
+  scale_y_continuous(limits = c(10000,600000))+
+  theme( axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Projected broad ethnic composition of Birmingham")+
+  labs(y="Population",
+       color = "Ethnic group")+
+  theme(legend.title = element_text(color = bcc_cols("black")))
+
+
+```
+
+| Ethnic group |            2022 |            2032 |            2047 |
+|--------------|----------------:|----------------:|----------------:|
+| White        | 547,041 (47.2%) | 485,463 (40.4%) | 450,059 (35.8%) |
+| Mixed        |   56,087 (4.8%) |   60,627 (5.0%) |   61,741 (4.9%) |
+| Asian        | 370,368 (32.0%) | 437,518 (36.4%) | 502,205 (40.0%) |
+| Black        | 131,212 (11.3%) | 154,099 (12.8%) | 170,209 (13.6%) |
+| Other        |   54,269 (4.7%) |   64,680 (5.4%) |   71,747 (5.7%) |
+
+: Birmingham population by broad ethnic groups, count (share)
+{#tbl-broad-eth-share}
+
+@fig-X105-broadpyramid show how these changes are distributed across age
+and sex and how these five populations differ in age structure. In terms
+of absolute population count, the White and Asian populations account
+for the largest numbers across much of the age distribution,
+specifically White population demonates the oldr ages. The Mixed, Black
+and Other ethnic groups are smaller in ppulation size. Among children,
+Asian counts are comparable with or higher than White counts. The
+projected pyramids show these differences becoming more pronounced over
+time as the ethnic composition of Birmingham changes.
+
+The percentage distributions provide a clearer comparison of the age
+profile within each broad ethnic group. The Mixed population has a
+particularly young structure concentrated in newborn and children. Asian
+and Black groups also have relatively greater concentrations at younger
+ages in teenagers and younger adults. This younger age structure
+provides greater demographic momentum for future population growth as
+larger cohorts progress into reproductive and working ages. In contrast,
+White population has a particularly older structure and very low
+concentration in newborn, children and teenagers.
+
+```{r}
+#| label: fig-X105-broadpyramid
+#| fig-cap: "Projected population by age, sex and broad ethnic group, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+
+
+plot_results_10.5 = 
+CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,age,sex,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>% 
+  group_by(year,age,sex, broad_eth) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>%
+  mutate(age = ifelse(age>=90, "90+",as.character(age)),
+         age = factor(age, levels=c(as.character(0:89), "90+")),
+         sex = factor(sex, levels=c("Male", "Female"))) %>% 
+  select(year,age,sex,broad_eth,end_population) %>% 
+  mutate(end_population = ifelse(sex == "Male",
+                                 end_population*-1,
+                                 end_population)) %>% 
+  filter(year %in% c(2022,2032,2047)) %>% 
+  ggplot(aes(y=age, x=end_population,fill=broad_eth))+
+  geom_col(width = 0.7)+
+  annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
+  annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
+  facet_wrap(~year)+
+  scale_x_continuous(labels = function(x) scales::comma(abs(x)))+
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+  scale_fill_manual(values = c("White" = "#00A9E0",
+                                 "Mixed" = "#75BC22",
+                                 "Asian" = "#DC582A",
+                                 "Black" = "#84329B",
+                                 "Other" = "#D00070"))+
+  ggtitle("Projected population by age and sex and broad ethnic group for Birmingham")+
+  labs(subtitle = "Projections for 2022, 2032 and 2047",
+       x="population")+
+  theme_bcc(base_size = 12,
+            gridline_x = F)+
+  theme(legend.position  = "bottom",
+        plot.margin      = margin(5, 20, 5, 20),
+        panel.spacing.x  = unit(1.2, "lines"),
+        strip.background = element_blank(),
+        strip.text       = element_text(face = "bold", hjust = 0.5))
+
+
+
+plot_results_10.5_pct = 
+
+CCM_result_list[[3]]$full_component_projection %>% 
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>% 
+  group_by(year, age, sex, broad_eth) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  group_by(year, age, sex, broad_eth) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, broad_eth) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  ggplot(aes(y = age, x = pop_share)) +
+  geom_col(data = overall_profile, aes(fill = nonwhite), width = 0.7) +
+  geom_step(aes(colour = broad_eth, group = interaction(broad_eth, sex)),
+            orientation = "y", linewidth = 0.5) +
+  annotate("text", x = -Inf, y = Inf, label = "Male", hjust = -0.3, vjust = 1.2, size = 3.5) +
+  annotate("text", x = Inf, y = Inf, label = "Female", hjust = 1.3, vjust = 1.2, size = 3.5) +
+  facet_wrap(~year) +
+  scale_x_continuous(labels = function(x) abs(x)) +
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+")) +
+  scale_colour_manual(values = c("White" = "#00A9E0",
+                                 "Mixed" = "#75BC22",
+                                 "Asian" = "#DC582A",
+                                 "Black" = "#84329B",
+                                 "Other" = "#D00070"))+
+  scale_fill_manual(values = c("All" = "grey80"),labels = "All", name = NULL)+
+  labs(
+    x = "Share of ethnic group population (%)"
+  ) +
+  theme_bcc(base_size = 15, gridline_x = F) +
+  theme(
+    legend.position  = "bottom",
+    plot.margin      = margin(5, 20, 5, 20),
+    panel.spacing.x  = unit(1.2, "lines"),
+    axis.text.x      = element_text(size = 11),
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold", hjust = 0.5)
+  )
+
+
+
+
+plot_results_10.5/plot_results_10.5_pct
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+## Detailed ethnic group projections
+
+```{r set up for the rest}
+#| warning: false
+#| message: false
+
+# #===========================================================
+# # function for line plots for harmonised group
+# 
+# 
+# # harmonised_colour_values = broad_group_map %>%
+# #   distinct(eth_code, harmonised_colour) %>%
+# #   mutate(eth_code = as.character(eth_code)) %>%
+# #   tibble::deframe()
+# # 
+eth_code_order = c(
+"WBI", "WHO",
+"MIX",
+"IND", "PAK", "BAN", "CHI", "OAS",
+"BLA", "BLC", "OBL",
+"OTH"
+)
+# 
+
+
+
+plot_result_harmonised_line = function(eth){
+  
+  
+  annual_components_byeth_plot = CCM_result_list[[3]]$annual_components_byeth %>%
+    mutate(
+      eth_code = factor(
+        eth_code,
+        levels = eth_code_order
+      )
+    ) %>% 
+    filter(eth_code %in% eth) %>% 
+    ggplot(aes(x=year,y=end_population, colour = eth_code,
+               group = eth_code))+
+    geom_line(size=0.8)+
+    scale_x_continuous(breaks = seq(2022, 2047, by = 5)) +
+    scale_colour_manual(
+      values = harmonised_colour_values,
+      breaks = eth_code_order) + 
+    labs(
+      title = "Projected population by harmonised ethnic group",
+      x = NULL,
+      y = "Population",
+      colour = "Broad ethnic group"
+    ) +
+    theme_bcc(base_size=15)
+  
+  return(annual_components_byeth_plot)
+  
+}
+
+#===========================================================
+
+plot_result_harmonised_line = function(eth){
+  
+  
+  annual_components_byeth_plot = CCM_result_list[[3]]$annual_components_byeth %>%
+    mutate(
+      eth_code = factor(
+        eth_code,
+        levels = eth_code_order
+      )
+    ) %>% 
+    filter(eth_code %in% eth) %>% 
+    ggplot(aes(x=year,y=end_population, colour = eth_code,
+               group = eth_code))+
+    geom_line(size=0.8)+
+    scale_x_continuous(breaks = seq(2022, 2047, by = 5)) +
+    scale_colour_manual(
+      values = harmonised_colour_values,
+      breaks = eth_code_order) + 
+    labs(
+      title = "Projected population by harmonised ethnic group",
+      x = NULL,
+      y = "Population",
+      colour = "Broad ethnic group"
+    ) +
+    theme_bcc(base_size=11)+
+    theme(title = element_text(size = 9))
+  
+  return(annual_components_byeth_plot)
+  
+}
+
+plot_result_harmonised_line(eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
+
+
+
+
+
+
+#=================================================================
+#function for pct pyramid plots for harmonised group
+
+plot_result_harmonised_pyramid = function(broad = "White",
+                                          eth = c("WBI", "WHO")){
+
+
+harmonised_count_pyramid = CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,age,sex,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  group_by(year,age,sex, eth_code) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>%
+  mutate(age = ifelse(age>=90, "90+",as.character(age)),
+         age = factor(age, levels=c(as.character(0:89), "90+")),
+         sex = factor(sex, levels=c("Male", "Female"))) %>% 
+  select(year,age,sex,eth_code,end_population) %>% 
+  mutate(end_population = ifelse(sex == "Male",
+                                 end_population*-1,
+                                 end_population)) %>% 
+  filter(year %in% c(2022,2032,2047)) %>% 
+  filter(eth_code %in% eth) %>% 
+  ggplot(aes(y=age, x=end_population,fill=eth_code))+
+  geom_col(width = 0.7)+
+  geom_vline(xintercept = 0, colour = "white")+
+  annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
+  annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
+  facet_wrap(~year)+
+  scale_x_continuous(labels = function(x) scales::comma(abs(x)))+
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+  scale_fill_manual(
+    values = harmonised_colour_values,
+    breaks = eth_code_order)+
+  ggtitle("Projected population by age and sex and harmonised ethnic group for Birmingham")+
+  labs(subtitle = "Projections for 2022, 2032 and 2047",
+       x="population")+
+  theme_bcc(base_size = 12,
+            gridline_x = F)+
+  theme(legend.position  = "bottom",
+        plot.margin      = margin(5, 20, 5, 20),
+        panel.spacing.x  = unit(1.2, "lines"),
+        strip.background = element_blank(),
+        strip.text       = element_text(face = "bold", hjust = 0.5))
+
+
+
+#------------------------------------------------------
+# pct pyramid
+
+
+overall_profile_broadeth = CCM_result_list[[3]]$full_component_projection %>%
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>%  
+  group_by(year, sex,age, broad_eth) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  group_by(year, age, sex, broad_eth) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, broad_eth) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  filter(broad_eth %in% broad)
+
+
+
+
+
+harmonised_pct_pyramid =  CCM_result_list[[3]]$full_component_projection %>% 
+  group_by(year, age, sex, eth_code) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  group_by(year, age, sex, eth_code) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, eth_code) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  filter(eth_code %in% eth) %>% 
+  ggplot(aes(y = age, x = pop_share)) +
+  geom_col(data = overall_profile_broadeth %>% filter(broad_eth == broad), aes(fill = "All"), width = 0.7) +
+  geom_step(aes(colour = eth_code, group = interaction(eth_code, sex)),
+            orientation = "y", linewidth = 0.8) +
+  annotate("text", x = -Inf, y = Inf, label = "Male", hjust = -0.3, vjust = 1.2, size = 3.5) +
+  annotate("text", x = Inf, y = Inf, label = "Female", hjust = 1.3, vjust = 1.2, size = 3.5) +
+  facet_wrap(~year) +
+  scale_x_continuous(labels = function(x) abs(x)) +
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+")) +
+  scale_colour_manual(
+    values = harmonised_colour_values,
+    breaks = eth_code_order)+
+  scale_fill_manual(values = c("All" = "grey80"),labels = broad, name = NULL)+
+  labs(
+    x = "Share of ethnic group population (%)"
+  ) +
+  theme_bcc(base_size = 15, gridline_x = F) +
+  theme(
+    legend.position  = "bottom",
+    plot.margin      = margin(5, 20, 5, 20),
+    panel.spacing.x  = unit(1.2, "lines"),
+    axis.text.x      = element_text(size = 11),
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold", hjust = 0.5)
+  )
+
+combined_harmonised_pyramid = (harmonised_count_pyramid/harmonised_pct_pyramid)
+
+return(combined_harmonised_pyramid)
+
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+```
+
+### White ethnic groups
+
+```{r}
+#| label: fig-X106-harmonised-white-line
+#| fig-cap: "Projected harmonised ethnic group (WBI and WHO) of Birmingham"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+
+plot_result_harmonised_line(eth = c("WBI", "WHO"))
+
+
+```
+
+```{r}
+#| label: fig-X1061-harmonised-white-pct_pyramid
+#| fig-cap: "Projected population by age, sex and harmonised ethnic group (WBI, WHO), Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+plot_result_harmonised_pyramid(broad = "White",
+                               eth = c("WBI", "WHO"))
+
+
+```
+
+
+
+
+
+
+
+
+#### White British and Irish (WBI)
+
+#### White Other (WHO)
+
+### Asian ethnic groups
+
+```{r}
+#| label: fig-X108-harmonised-asian-line
+#| fig-cap: "Projected harmonised ethnic group (IND, PAK, CHI, OAS) of Birmingham"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+
+plot_result_harmonised_line(eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
+
+
+```
+
+```{r}
+#| label: fig-X1081-harmonised-asian-pct_pyramid
+#| fig-cap: "Projected population by age, sex and harmonised ethnic group (IND, PAK, BAN, CHI, OAS), Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+plot_result_harmonised_pyramid(broad = "Asian",
+                               eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
+
+
+```
+
+#### Indian (IND)
+
+#### Pakistani (PAK)
+
+#### Chinese (CHI)
+
+#### Other Asian (OAS)
+
+### Black ethnic groups
+
+```{r}
+#| label: fig-X109-harmonised-black-line
+#| fig-cap: "Projected harmonised ethnic group (BLA, BLC,OBL) of Birmingham"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+
+plot_result_harmonised_line(eth = c("BLA", "BLC", "OBL"))
+
+
+```
+
+```{r}
+#| label: fig-X1091-harmonised-black-pct_pyramid
+#| fig-cap: "Projected population by age, sex and harmonised ethnic group (BLA, BLC, OBL), Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+plot_result_harmonised_pyramid(broad = "Black",
+                               eth = c("BLA", "BLC", "OBL"))
+
+
+```
+
+
+#### Black African (BLA)
+
+#### Black Caribbean (BLC)
+
+#### Other Black (OBL)
+
+### Mixed and Other ethnic groups
+
+```{r}
+#| label: fig-X1010-harmonised-mixed-line
+#| fig-cap: "Projected harmonised ethnic group (MIX, OTH) of Birmingham"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+
+
+plot_result_harmonised_line(eth = c("MIX", "OTH"))
+
+
+```
+
+
+#### Mixed (MIX)
+
+
+```{r}
+#| label: fig-X1011-harmonised-Mix-pct_pyramid
+#| fig-cap: "Projected population by age, sex and harmonised ethnic group (MIX), Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+plot_result_harmonised_pyramid(broad = "Mixed",
+                               eth = c("MIX"))
+
+
+```
+
+#### Other ethnic group (OTH)
+
+
+```{r}
+#| label: fig-X1012-harmonised-OTH-pct_pyramid
+#| fig-cap: "Projected population by age, sex and harmonised ethnic group (OTH), Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 9
+#| warning: false
+#| message: false
+plot_result_harmonised_pyramid(broad = "Other",
+                               eth = c("OTH"))
+
+
+```
+
+
+
+
+## Comparison to ONS SNPP 2022
 
 # References {.unnumbered}
 

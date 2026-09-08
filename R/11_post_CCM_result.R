@@ -27,10 +27,98 @@ pixel_2_in = function(width,
 
 CCM_result_list = readRDS("data/processed/CCM_result_list.rds")
 
-full_component_projection = CCM_result_list[[1]]
+full_component_projection = CCM_result_list[[1]]$full_component_projection
 
-annual_components = full_component_projection %>%
-  group_by(year) %>%
+for (i in seq_along(CCM_result_list)){
+    
+  full_component_projection = CCM_result_list[[i]]$full_component_projection
+  
+  CCM_result_list[[i]]$annual_components = full_component_projection %>%
+    group_by(year) %>%
+    summarise(
+      births = sum(births, na.rm = TRUE),
+      deaths = sum(total_deaths, na.rm = TRUE),
+      
+      natural_change =births - deaths,
+      
+      internal_in =sum(internal_in_migrants, na.rm = TRUE),
+      
+      internal_out =sum(internal_out_migrants, na.rm = TRUE),
+      
+      net_internal =internal_in - internal_out,
+      
+      international_in =sum(international_immigrants, na.rm = TRUE),
+      
+      international_out =sum(international_emigrants, na.rm = TRUE),
+      
+      net_international =international_in - international_out,
+      
+      projected_change =natural_change + net_internal +net_international,
+      
+      end_population = sum(end_population, na.rm = TRUE),
+      start_pop = end_population-projected_change,
+      
+      .groups = "drop"
+    )
+  
+  
+  CCM_result_list[[i]]$annual_components_byeth = full_component_projection %>%
+    group_by(year,eth_code) %>%
+    summarise(
+      births = sum(births, na.rm = TRUE),
+      deaths = sum(total_deaths, na.rm = TRUE),
+      
+      natural_change =births - deaths,
+      
+      internal_in =sum(internal_in_migrants, na.rm = TRUE),
+      
+      internal_out =sum(internal_out_migrants, na.rm = TRUE),
+      
+      net_internal =internal_in - internal_out,
+      
+      international_in =sum(international_immigrants, na.rm = TRUE),
+      
+      international_out =sum(international_emigrants, na.rm = TRUE),
+      
+      net_international =international_in - international_out,
+      
+      projected_change =natural_change + net_internal +net_international,
+      
+      end_population = sum(end_population, na.rm = TRUE),
+      start_pop = end_population-projected_change,
+      
+      .groups = "drop"
+    )
+  
+}
+
+plot_results_10.1 = bind_rows(
+  "B-EF"      = CCM_result_list[[1]]$annual_components,
+  "B-ER2022"  = CCM_result_list[[2]]$annual_components,
+  "LT-ER2030" = CCM_result_list[[3]]$annual_components,
+  .id = "scenario"
+) %>% 
+  mutate(scenario = factor(scenario, levels = c("B-EF", "B-ER2022", "LT-ER2030")),
+         year = as.character(year)) %>% 
+  ggplot(aes(x=year,y=end_population, group = scenario, color = scenario))+
+  geom_line(size=1)+
+  scale_y_continuous(limits = c(1150000,1300000))+
+  theme_bcc(base_size = 11)+
+  scale_colour_bcc(palette = "multi")+
+  theme( axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Birmingham Population Projections under Alternative Emigration Scenarios")+
+  labs(y="Population",
+       color = "Scenarios")+
+  theme(legend.title = element_text(color = bcc_cols("black")))
+
+
+
+
+#=========================================================================
+#plot 10.2
+
+plot_results_10.2 = CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,age,sex,eth_code) %>%
   summarise(
     births = sum(births, na.rm = TRUE),
     deaths = sum(total_deaths, na.rm = TRUE),
@@ -55,9 +143,129 @@ annual_components = full_component_projection %>%
     start_pop = end_population-projected_change,
     
     .groups = "drop"
+  ) %>% 
+  mutate(nonwhite = case_when(eth_code == "WBI" ~ "White British",
+                              eth_code == "WHO" ~ "White Other",
+                              TRUE ~ "Non-White")) %>% 
+  group_by(year,age,sex, nonwhite) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>%
+  mutate(age = ifelse(age>=90, "90+",as.character(age)),
+         age = factor(age, levels=c(as.character(0:89), "90+")),
+         sex = factor(sex, levels=c("Male", "Female"))) %>% 
+  select(year,age,sex,nonwhite,end_population) %>% 
+  mutate(end_population = ifelse(sex == "Male",
+                                 end_population*-1,
+                                 end_population)) %>% 
+  filter(year %in% c(2022,2032,2047)) %>% 
+  ggplot(aes(y=age, x=end_population,fill=nonwhite))+
+  geom_col(width = 0.7)+
+  annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
+  annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
+  facet_wrap(~year)+
+  scale_x_continuous(labels = function(x) scales::comma(abs(x)))+
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+  scale_fill_bcc(palette = "multi")+
+  ggtitle("Projected population by age and sex and ethnicity grouping for Birmingham")+
+  labs(subtitle = "Projections for 2022, 2032 and 2047",
+       x="population")+
+  theme_bcc(base_size = 12,
+            gridline_x = F)+
+  theme(legend.position  = "bottom",
+        plot.margin      = margin(5, 20, 5, 20),
+        panel.spacing.x  = unit(1.2, "lines"),
+        strip.background = element_blank(),
+        strip.text       = element_text(face = "bold", hjust = 0.5))
+  
+
+
+
+
+
+overall_profile = CCM_result_list[[3]]$full_component_projection %>% 
+  group_by(year, sex,age) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  mutate(
+    nonwhite = "All") %>% 
+  group_by(year, age, sex, nonwhite) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, nonwhite) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047))
+
+
+
+
+plot_results_10.2_pct = CCM_result_list[[3]]$full_component_projection %>% 
+  group_by(year, age, sex, eth_code) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  mutate(
+    nonwhite = case_when(
+      eth_code %in% c("WBI", "WHO") ~ "White",
+      TRUE                          ~ "Non-White"
+    )
+  ) %>% 
+  group_by(year, age, sex, nonwhite) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, nonwhite) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  ggplot(aes(y = age, x = pop_share)) +
+  geom_col(data = overall_profile, aes(fill = nonwhite), width = 0.7) +
+  geom_step(aes(colour = nonwhite, group = interaction(nonwhite, sex)),
+            orientation = "y", linewidth = 0.5) +
+  annotate("text", x = -Inf, y = Inf, label = "Male", hjust = -0.3, vjust = 1.2, size = 3.5) +
+  annotate("text", x = Inf, y = Inf, label = "Female", hjust = 1.3, vjust = 1.2, size = 3.5) +
+  facet_wrap(~year) +
+  scale_x_continuous(labels = function(x) abs(x)) +
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+")) +
+  scale_colour_bcc(palette = "multi")+
+  scale_fill_manual(values = c("All" = "grey80"),labels = "All", name = NULL)+
+  labs(
+    x = "Share of ethnic group population (%)"
+  ) +
+  theme_bcc(base_size = 15, gridline_x = F) +
+  theme(
+    legend.position  = "bottom",
+    plot.margin      = margin(5, 20, 5, 20),
+    panel.spacing.x  = unit(1.2, "lines"),
+    axis.text.x      = element_text(size = 11),
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold", hjust = 0.5)
   )
 
-annual_components_byeth = full_component_projection %>%
+plot_results_10.2_pct
+
+
+plot_results_10.2/plot_results_10.2_pct
+
+
+
+#=============================================================
+
+options(scipen = 999)
+
+CCM_result_list[[3]]$full_component_projection%>% 
   group_by(year,eth_code) %>%
   summarise(
     births = sum(births, na.rm = TRUE),
@@ -83,9 +291,482 @@ annual_components_byeth = full_component_projection %>%
     start_pop = end_population-projected_change,
     
     .groups = "drop"
+  ) %>% 
+  mutate(nonwhite = case_when(eth_code == "WBI" ~ "White British",
+                              eth_code == "WHO" ~ "White Other",
+                              TRUE ~ "Non-White")) %>% 
+  group_by(year, nonwhite) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>% 
+  mutate(year = as.character(year)) %>% 
+  ggplot(aes(x=year,y=end_population, colour=nonwhite,group=nonwhite)) +
+  geom_line(size=1)+
+  theme_bcc(base_size = 11)+
+  scale_colour_bcc(palette = "multi")+
+  scale_y_continuous(limits = c(10000,900000))+
+  theme( axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Birmingham Population Projections under Alternative Emigration Scenarios")+
+  labs(y="Population",
+       color = "Scenarios")+
+  theme(legend.title = element_text(color = bcc_cols("black")))
+#=========================================================================
+#for 10.2.2 broad ethnic 
+
+
+#----plot10.2.2_ count pyramid---------
+
+CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>% 
+  group_by(year, broad_eth) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>% 
+  mutate(year = as.character(year)) %>% 
+  ggplot(aes(x=year,y=end_population, colour=broad_eth,group=broad_eth)) +
+  geom_line(size=1)+
+  theme_bcc(base_size = 11)+
+  scale_colour_manual(values = c("White" = "#00A9E0",
+                                 "Mixed" = "#75BC22",
+                                 "Asian" = "#DC582A",
+                                 "Black" = "#84329B",
+                                 "Other" = "#D00070")) +
+  scale_y_continuous(limits = c(10000,600000))+
+  theme( axis.text.x = element_text(angle = 45, hjust = 1))+
+  ggtitle("Projected broad ethnic composition of Birmingham")+
+  labs(y="Population",
+       color = "Ethnic group")+
+  theme(legend.title = element_text(color = bcc_cols("black")))
+
+
+
+
+
+
+
+
+CCM_result_list[[3]]$full_component_projection %>% 
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>% 
+  group_by(year,broad_eth) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  group_by(year) %>% 
+  mutate(all_population = sum(end_population, na.rm = TRUE)) %>% 
+  ungroup() %>% 
+  mutate(pop_share = end_population / all_population * 100) %>% 
+  filter(year %in% c(2022, 2032, 2047))
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#----plot10.5.2_pct pyramid---------
+
+
+plot_results_10.5 = CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,age,sex,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>% 
+  group_by(year,age,sex, broad_eth) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>%
+  mutate(age = ifelse(age>=90, "90+",as.character(age)),
+         age = factor(age, levels=c(as.character(0:89), "90+")),
+         sex = factor(sex, levels=c("Male", "Female"))) %>% 
+  select(year,age,sex,broad_eth,end_population) %>% 
+  mutate(end_population = ifelse(sex == "Male",
+                                 end_population*-1,
+                                 end_population)) %>% 
+  filter(year %in% c(2022,2032,2047)) %>% 
+  ggplot(aes(y=age, x=end_population,fill=broad_eth))+
+  geom_col(width = 0.7)+
+  annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
+  annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
+  facet_wrap(~year)+
+  scale_x_continuous(labels = function(x) scales::comma(abs(x)))+
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+  scale_fill_manual(values = c("White" = "#00A9E0",
+                                 "Mixed" = "#75BC22",
+                                 "Asian" = "#DC582A",
+                                 "Black" = "#84329B",
+                                 "Other" = "#D00070"))+
+  ggtitle("Projected population by age and sex and broad ethnic group for Birmingham")+
+  labs(subtitle = "Projections for 2022, 2032 and 2047",
+       x="population")+
+  theme_bcc(base_size = 12,
+            gridline_x = F)+
+  theme(legend.position  = "bottom",
+        plot.margin      = margin(5, 20, 5, 20),
+        panel.spacing.x  = unit(1.2, "lines"),
+        strip.background = element_blank(),
+        strip.text       = element_text(face = "bold", hjust = 0.5))
+
+
+
+
+plot_results_10.5_pct = CCM_result_list[[3]]$full_component_projection %>% 
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>% 
+  group_by(year, age, sex, broad_eth) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  group_by(year, age, sex, broad_eth) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, broad_eth) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  ggplot(aes(y = age, x = pop_share)) +
+  geom_col(data = overall_profile, aes(fill = nonwhite), width = 0.7) +
+  geom_step(aes(colour = broad_eth, group = interaction(broad_eth, sex)),
+            orientation = "y", linewidth = 0.5) +
+  annotate("text", x = -Inf, y = Inf, label = "Male", hjust = -0.3, vjust = 1.2, size = 3.5) +
+  annotate("text", x = Inf, y = Inf, label = "Female", hjust = 1.3, vjust = 1.2, size = 3.5) +
+  facet_wrap(~year) +
+  scale_x_continuous(labels = function(x) abs(x)) +
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+")) +
+  scale_colour_manual(values = c("White" = "#00A9E0",
+                                 "Mixed" = "#75BC22",
+                                 "Asian" = "#DC582A",
+                                 "Black" = "#84329B",
+                                 "Other" = "#D00070"))+
+  scale_fill_manual(values = c("All" = "grey80"),labels = "All", name = NULL)+
+  labs(
+    x = "Share of ethnic group population (%)"
+  ) +
+  theme_bcc(base_size = 15, gridline_x = F) +
+  theme(
+    legend.position  = "bottom",
+    plot.margin      = margin(5, 20, 5, 20),
+    panel.spacing.x  = unit(1.2, "lines"),
+    axis.text.x      = element_text(size = 11),
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold", hjust = 0.5)
   )
 
 
+#=========================================================================
+#Detailed ethnic group projections
+
+broad_group_map = broad_group_map %>% 
+  group_by(broad_colours) %>% 
+  mutate(shade_number = row_number(),
+         harmonised_colour = bcc_pal(palette = first(broad_colours))(9)[round(seq(2, 9, length.out = n()))][shade_number]) %>% 
+  ungroup()
+
+harmonised_colour_values = broad_group_map %>%
+  distinct(eth_code, harmonised_colour) %>%
+  mutate(eth_code = as.character(eth_code)) %>%
+  tibble::deframe()
+
+eth_code_order = c(
+  "WBI", "WHO",
+  "MIX",
+  "IND", "PAK", "BAN", "CHI", "OAS",
+  "BLA", "BLC", "OBL",
+  "OTH"
+)
+
+
+plot_result_harmonised_line = function(eth){
+  
+  
+  annual_components_byeth_plot = CCM_result_list[[3]]$annual_components_byeth %>%
+    mutate(
+      eth_code = factor(
+        eth_code,
+        levels = eth_code_order
+      )
+    ) %>% 
+    filter(eth_code %in% eth) %>% 
+    ggplot(aes(x=year,y=end_population, colour = eth_code,
+               group = eth_code))+
+    geom_line(size=0.8)+
+    scale_x_continuous(breaks = seq(2022, 2047, by = 5)) +
+    scale_colour_manual(
+      values = harmonised_colour_values,
+      breaks = eth_code_order) + 
+    labs(
+      title = "Projected population by harmonised ethnic group",
+      x = NULL,
+      y = "Population",
+      colour = "Broad ethnic group"
+    ) +
+    theme_bcc(base_size=11)+
+    theme(title = element_text(size = 9))
+  
+  return(annual_components_byeth_plot)
+  
+}
+
+plot_result_harmonised_line(eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
+
+
+
+
+
+
+#--------------------------------------------------
+
+
+plot_result_harmonised_pyramid = function(broad = "White",
+                                          eth = c("WBI", "WHO")){
+
+
+harmonised_count_pyramid = CCM_result_list[[3]]$full_component_projection%>% 
+  group_by(year,age,sex,eth_code) %>%
+  summarise(
+    births = sum(births, na.rm = TRUE),
+    deaths = sum(total_deaths, na.rm = TRUE),
+    
+    natural_change =births - deaths,
+    
+    internal_in =sum(internal_in_migrants, na.rm = TRUE),
+    
+    internal_out =sum(internal_out_migrants, na.rm = TRUE),
+    
+    net_internal =internal_in - internal_out,
+    
+    international_in =sum(international_immigrants, na.rm = TRUE),
+    
+    international_out =sum(international_emigrants, na.rm = TRUE),
+    
+    net_international =international_in - international_out,
+    
+    projected_change =natural_change + net_internal +net_international,
+    
+    end_population = sum(end_population, na.rm = TRUE),
+    start_pop = end_population-projected_change,
+    
+    .groups = "drop"
+  ) %>% 
+  group_by(year,age,sex, eth_code) %>% 
+  summarise(across(where(is.numeric), ~sum(.x, na.rm = TRUE)),
+            .groups = "drop") %>%
+  mutate(age = ifelse(age>=90, "90+",as.character(age)),
+         age = factor(age, levels=c(as.character(0:89), "90+")),
+         sex = factor(sex, levels=c("Male", "Female"))) %>% 
+  select(year,age,sex,eth_code,end_population) %>% 
+  mutate(end_population = ifelse(sex == "Male",
+                                 end_population*-1,
+                                 end_population)) %>% 
+  filter(year %in% c(2022,2032,2047)) %>% 
+  filter(eth_code %in% eth) %>% 
+  ggplot(aes(y=age, x=end_population,fill=eth_code))+
+  geom_col(width = 0.7)+
+  geom_vline(xintercept = 0, colour = "white")+
+  annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
+  annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
+  facet_wrap(~year)+
+  scale_x_continuous(labels = function(x) scales::comma(abs(x)))+
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+  scale_fill_manual(
+    values = harmonised_colour_values,
+    breaks = eth_code_order)+
+  ggtitle("Projected population by age and sex and harmonised ethnic group for Birmingham")+
+  labs(subtitle = "Projections for 2022, 2032 and 2047",
+       x="population")+
+  theme_bcc(base_size = 12,
+            gridline_x = F)+
+  theme(legend.position  = "bottom",
+        plot.margin      = margin(5, 20, 5, 20),
+        panel.spacing.x  = unit(1.2, "lines"),
+        strip.background = element_blank(),
+        strip.text       = element_text(face = "bold", hjust = 0.5))
+
+
+
+#------------------------------------------------------
+# pct pyramid
+
+
+overall_profile_broadeth = CCM_result_list[[3]]$full_component_projection %>%
+  mutate( broad_eth = case_when(
+    eth_code %in% c("WBI", "WHO")                         ~ "White",
+    eth_code == "MIX"                                     ~ "Mixed",
+    eth_code %in% c("IND", "PAK", "BAN", "CHI", "OAS")   ~ "Asian",
+    eth_code %in% c("BLA", "BLC", "OBL")                 ~ "Black",
+    eth_code == "OTH"                                     ~ "Other"),
+    broad_eth = factor(broad_eth, levels= c("White", "Mixed", "Asian", "Black", "Other"))) %>%  
+  group_by(year, sex,age, broad_eth) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  group_by(year, age, sex, broad_eth) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, broad_eth) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  filter(broad_eth %in% broad)
+
+
+
+
+
+harmonised_pct_pyramid =  CCM_result_list[[3]]$full_component_projection %>% 
+  group_by(year, age, sex, eth_code) %>% 
+  summarise(
+    end_population = sum(end_population, na.rm = TRUE),
+    .groups = "drop"
+  ) %>% 
+  group_by(year, age, sex, eth_code) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  group_by(year, eth_code) %>% 
+  mutate(pop_share = end_population / sum(end_population, na.rm = TRUE) * 100) %>% 
+  ungroup() %>% 
+  mutate(
+    age = ifelse(age >= 90, "90+", as.character(age)),
+    age = factor(age, levels = c(as.character(0:89), "90+")),
+    sex = factor(sex, levels = c("Male", "Female")),
+    pop_share = ifelse(sex == "Male", pop_share * -1, pop_share)
+  ) %>% 
+  filter(year %in% c(2022, 2032, 2047)) %>% 
+  filter(eth_code %in% eth) %>% 
+  ggplot(aes(y = age, x = pop_share)) +
+  geom_col(data = overall_profile_broadeth %>% filter(broad_eth == broad), aes(fill = broad_eth), width = 0.7) +
+  geom_step(aes(colour = eth_code, group = interaction(eth_code, sex)),
+            orientation = "y", linewidth = 0.8) +
+  annotate("text", x = -Inf, y = Inf, label = "Male", hjust = -0.3, vjust = 1.2, size = 3.5) +
+  annotate("text", x = Inf, y = Inf, label = "Female", hjust = 1.3, vjust = 1.2, size = 3.5) +
+  facet_wrap(~year) +
+  scale_x_continuous(labels = function(x) abs(x)) +
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+")) +
+  scale_colour_manual(
+    values = harmonised_colour_values,
+    breaks = eth_code_order)+
+  scale_fill_manual(values = c(broad = "grey80"),labels = "All", name = NULL)+
+  labs(
+    x = "Share of ethnic group population (%)"
+  ) +
+  theme_bcc(base_size = 15, gridline_x = F) +
+  theme(
+    legend.position  = "bottom",
+    plot.margin      = margin(5, 20, 5, 20),
+    panel.spacing.x  = unit(1.2, "lines"),
+    axis.text.x      = element_text(size = 11),
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold", hjust = 0.5)
+  )
+
+combined_harmonised_pyramid = (harmonised_count_pyramid/harmonised_pct_pyramid)
+
+return(combined_harmonised_pyramid)
+
+}
+
+plot_result_harmonised_pyramid(broad = "Asian",
+                               eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
 
 
 
@@ -192,26 +873,26 @@ broad_colour_values = broad_group_map %>%
   tibble::deframe()
 
 
-annual_components_bybroadeth_plot = annual_components_byeth %>% 
+annual_components_bybroadeth_plot = CCM_result_list[[3]]$annual_components_byeth %>% 
   left_join(broad_group_map, by = "eth_code") %>% 
-  group_by(year, broad_group, broad_colours_hex) %>%
-  summarise(
-    end_population = sum(end_population, na.rm = TRUE),
-    .groups = "drop"
-  ) %>% 
-  ggplot(aes(x=year,y=end_population,colour= broad_group, group=broad_group))+
-  geom_line(size=0.8)+
+  group_by(year, broad_group) %>% 
+  summarise(end_population = sum(end_population, na.rm = TRUE), .groups = "drop") %>% 
+  ggplot(aes(x = year, y = end_population, colour = broad_group, group = broad_group)) +
+  geom_line(size = 0.8) +
   scale_x_continuous(breaks = seq(2022, 2047, by = 5)) +
-  scale_y_continuous(breaks = seq(0,600000,by = 100000),limits = c(0,550000))+
-  scale_colour_manual(
-    values = broad_colour_values) +
+  scale_y_continuous(breaks = seq(0, 600000, by = 100000), limits = c(0, 550000)) +
+  scale_colour_manual(values = c("White" = "#00A9E0",
+                                 "Mixed" = "#75BC22",
+                                 "Asian" = "#DC582A",
+                                 "Black" = "#84329B",
+                                 "Other" = "#D00070")) +
   labs(
-    title = "Projected population by broad ethnic group",
-    x = NULL,
-    y = "Population",
+    title  = "Projected population by broad ethnic group",
+    x      = NULL,
+    y      = "Population",
     colour = "Broad ethnic group"
   ) +
-  theme_bcc(base_size=11)+
+  theme_bcc(base_size = 11) +
   theme(title = element_text(size = 9))
 
 
@@ -230,7 +911,66 @@ eth_code_order = c(
   "OTH"
 )
 
-annual_components_byeth_plot = annual_components_byeth %>%
+
+plot_result_harmonised_line = function(eth){
+  
+  
+  annual_components_byeth_plot = CCM_result_list[[3]]$annual_components_byeth %>%
+    mutate(
+      eth_code = factor(
+        eth_code,
+        levels = eth_code_order
+      )
+    ) %>% 
+    filter(eth_code %in% eth) %>% 
+    ggplot(aes(x=year,y=end_population, colour = eth_code,
+               group = eth_code))+
+    geom_line(size=0.8)+
+    scale_x_continuous(breaks = seq(2022, 2047, by = 5)) +
+    scale_colour_manual(
+      values = harmonised_colour_values,
+      breaks = eth_code_order) + 
+    labs(
+      title = "Projected population by harmonised ethnic group",
+      x = NULL,
+      y = "Population",
+      colour = "Broad ethnic group"
+    ) +
+    theme_bcc(base_size=11)+
+    theme(title = element_text(size = 9))
+  
+  return(annual_components_byeth_plot)
+  
+}
+
+plot_result_harmonised_line(eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
+
+
+#-------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+annual_components_byeth_plot = CCM_result_list[[3]]$annual_components_byeth %>%
   mutate(
     eth_code = factor(
       eth_code,
