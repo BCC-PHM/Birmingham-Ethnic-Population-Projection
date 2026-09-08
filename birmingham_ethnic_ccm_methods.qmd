@@ -1716,7 +1716,7 @@ projection period.
 # Summary of projection assumptions {#sec-assumptions}
 
 | Component                                   | Projection assumption                                                                                                                                                                                                                                                                                                                |
-|-------------------------|----------------------------------------------|
+|--------------------------|----------------------------------------------|
 | **Base population**                         | The 2021 Census population was used as the projection base by ethnic group, sex and single year of age but the data is not recorded in mid year but in 21 March 2021. No adjustment was made for the gap because the differences in count is minimal.                                                                                |
 | **Projection horizon**                      | Population was projected annually from 2022 to 2047. Ages were modelled from 0 to 100+, with 100+ treated as the terminal open-ended age group.                                                                                                                                                                                      |
 | **Ethnic groups**                           | 12 harmonised NEWETHPOP ethnic groups were used throughout the projection.                                                                                                                                                                                                                                                           |
@@ -2020,6 +2020,7 @@ plot_results_10.2 = CCM_result_list[[3]]$full_component_projection%>%
   filter(year %in% c(2022,2032,2047)) %>% 
   ggplot(aes(y=age, x=end_population,fill=nonwhite))+
   geom_col(width = 0.7)+
+  geom_vline(xintercept = 0, colour = "white")+
   annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
   annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
   facet_wrap(~year)+
@@ -2296,6 +2297,7 @@ CCM_result_list[[3]]$full_component_projection%>%
   filter(year %in% c(2022,2032,2047)) %>% 
   ggplot(aes(y=age, x=end_population,fill=broad_eth))+
   geom_col(width = 0.7)+
+  geom_vline(xintercept = 0, colour = "white")+
   annotate("text", x = -Inf, y = Inf, label = "Male",   hjust = -0.3, vjust = 1.2, size = 3.5)+
   annotate("text", x =  Inf, y = Inf, label = "Female", hjust =  1.3, vjust = 1.2, size = 3.5)+
   facet_wrap(~year)+
@@ -2481,14 +2483,13 @@ plot_result_harmonised_line = function(eth){
       y = "Population",
       colour = "Broad ethnic group"
     ) +
-    theme_bcc(base_size=11)+
-    theme(title = element_text(size = 9))
+    theme_bcc(base_size=15)
   
   return(annual_components_byeth_plot)
   
 }
 
-plot_result_harmonised_line(eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
+
 
 
 
@@ -2653,6 +2654,207 @@ return(combined_harmonised_pyramid)
 
 
 
+#=================================================================
+#function for pyramid profile plots referening 2022 outline for harmonised group
+#same as the interacttive docuement 
+
+
+
+pyramid_profile = CCM_result_list[[3]]$full_population_projection %>% 
+  mutate(age = ifelse(age>=90, "90+",as.character(age)),
+         age = factor(age, levels=c(as.character(0:89), "90+")),
+         sex = factor(sex, levels=c("Male", "Female"))) %>% 
+  group_by(year,eth_code,sex,age) %>%
+  summarise(population = sum(population),
+            .groups = "drop") %>% 
+  mutate(population = ifelse(sex == "Male", population*-1, population))
+
+
+pyramid_profile_harmonised = function(select_ethnic = "WBI",
+                                      slider_year = c(2022, 2032,2047)){
+
+  #---2022 reference outline, drawn in every panel-----------
+  ref_profile = pyramid_profile %>% 
+    filter(eth_code == select_ethnic, year == 2022) %>% 
+    select(-year)
+  
+  #plot title specific to harmonised ethnic group
+  plot_title  = paste0("Projected change in ", select_ethnic, " population by single year of age and sex\n",
+                       "Birmingham, ", "2022, 2032 and 2047")
+  
+pyramid_profile_plot = pyramid_profile%>% 
+  filter(eth_code == select_ethnic,
+         year     %in% slider_year) %>% 
+  ggplot(aes(y=age, x=population,fill=sex))+
+  geom_col()+
+  geom_step(data = ref_profile, aes(y = age, x = population, group = sex),
+            colour = "black", linewidth = 0.6, direction = "mid", orientation = "y") +
+  facet_wrap(~ year)+
+  scale_x_continuous(
+    labels = function(x) scales::comma(abs(x)))+
+  scale_y_discrete(breaks = c(as.character(seq(0, 80, 10)), "90+"))+
+  scale_fill_bcc(palette = "multi")+
+  labs(title = plot_title)+
+  theme_bcc(base_size = 15,
+            gridline_y = F)+
+  theme(
+    legend.position  = "bottom",
+    plot.margin      = margin(5, 20, 5, 20),
+    panel.spacing.x  = unit(1.2, "lines"),
+    axis.text.x      = element_text(size = 11),
+    strip.background = element_blank(),
+    strip.text       = element_text(face = "bold", hjust = 0.5)
+  )
+
+return(pyramid_profile_plot)
+
+}
+
+
+
+#=================================================================
+#function to plot the changes in age group count and share 
+
+
+age_cols =  c("0-4"   = "#C7E9B4", "5-15"  = "#7FCDBB", "16-24" = "#41B6C4",
+              "25-49" = "#1D91C0", "50-64" = "#225EA8", "65+"   = "#0C2C84")
+
+
+changes_in_agegroup = CCM_result_list[[3]]$full_population_projection %>% 
+  mutate(age_groups = case_when(age %in% c(0:4) ~ "0-4",
+                                age %in% c(5:15)~ "5-15",
+                                age %in% c(16:24) ~ "16-24",
+                                age %in% c(25:49) ~ "25-49",
+                                age %in% c(50:64) ~ "50-64",
+                                age %in% c(65:100) ~ "65+",
+                                TRUE ~ NA_character_),
+         age_groups = factor(age_groups, levels = rev(c("0-4", "5-15", "16-24", "25-49", "50-64", "65+")))) %>% 
+  group_by(year, eth_code,age_groups) %>% 
+  summarise(population = sum(population), .groups = "drop") %>% 
+  filter(year %in% c(2022:2047))
+
+
+change_agegroup_func = function(eth = "WBI"){
+  
+  #plot title specific to harmonised ethnic group
+  plot_title  = paste0("Projected change in ", eth, " population by age groups")
+  
+age_changes_count = changes_in_agegroup %>% 
+  filter(eth_code == eth) %>% 
+  ggplot(aes(x = year, y = population, colour = age_groups, group = age_groups)) +
+  geom_line(linewidth = 1) +
+  scale_x_continuous(breaks = seq(2022, 2047, by = 5)) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_colour_manual(values = age_cols, name = "Age group") +
+  labs(title = plot_title,
+       subtitle = "Birmingham, 2022 to 2047",
+       x     = NULL,
+       y     = "Population") +
+  theme_bcc(base_size = 15)+
+  theme(legend.position = "bottom")+
+  guides(colour = guide_legend(nrow = 1))
+  
+
+age_changes_share = changes_in_agegroup %>% 
+  filter(eth_code == eth) %>% 
+  ggplot(aes(x = year, y = population, fill = age_groups, group = age_groups)) +
+  geom_col(position = "fill") +
+  scale_x_continuous(breaks = seq(2022, 2047, by = 5)) +
+  scale_fill_manual(values = age_cols)+
+  labs(
+    x      = NULL,
+    y      = "Population (%)",
+    colour = "Broad ethnic group"
+  ) +
+  theme_bcc(base_size = 15)+
+  theme(legend.position = "bottom")+
+  guides(fill = guide_legend(nrow = 1))
+  
+
+
+ return(age_changes_count/age_changes_share)
+
+}
+
+
+
+#======================================================
+#waterfall plot
+#2022 to 2032 , 2032 to 2047
+#======================================================
+
+
+
+waterfallplot_data = CCM_result_list[[3]]$annual_components_byeth %>% 
+  filter(year %in% 2023:2032) %>%
+  group_by(eth_code) %>%
+  summarise(Births       = sum(births),
+            Deaths       = sum(deaths) * -1,
+            Internal_in  = sum(internal_in),
+            Internal_out = sum(internal_out) * -1,
+            Immigration  = sum(international_in),
+            Emigration   = sum(international_out) * -1,
+            .groups = "drop") %>%
+  pivot_longer(cols = -eth_code,
+               values_to = "changes",
+               names_to  = "details") %>%
+  mutate(details = factor(details,
+                          levels = c("Births", "Deaths",
+                                     "Internal_in", "Internal_out",
+                                     "Immigration", "Emigration"))) %>%
+  arrange(eth_code, details) %>%
+  group_by(eth_code) %>%                      # <- grouping FIRST
+  mutate(
+    end   = cumsum(changes),
+    start = lag(end,default = 0),
+    ypos  = rev(seq_len(n())), 
+    next_ypos = lead(ypos,default = 0),# 6..1 within each group
+    pad   = max(abs(changes)) * 0.03,
+    label_x     = end + ifelse(changes > 0, pad, -pad),
+    label_y     = ypos,
+    label_hjust = ifelse(changes > 0, 0, 1),
+    change_label = paste0(ifelse(changes > 0, "+", ""),
+                          scales::comma(round(changes)))
+  ) %>%
+  ungroup() 
+
+
+
+
+
+
+waterfallplot_3247data = CCM_result_list[[3]]$annual_components_byeth %>% 
+  filter(year %in% 2033:2047) %>%
+  group_by(eth_code) %>%
+  summarise(Births       = sum(births),
+            Deaths       = sum(deaths) * -1,
+            Internal_in  = sum(internal_in),
+            Internal_out = sum(internal_out) * -1,
+            Immigration  = sum(international_in),
+            Emigration   = sum(international_out) * -1,
+            .groups = "drop") %>%
+  pivot_longer(cols = -eth_code,
+               values_to = "changes",
+               names_to  = "details") %>%
+  mutate(details = factor(details,
+                          levels = c("Births", "Deaths",
+                                     "Internal_in", "Internal_out",
+                                     "Immigration", "Emigration"))) %>%
+  arrange(eth_code, details) %>%
+  group_by(eth_code) %>%                      # <- grouping FIRST
+  mutate(
+    end   = cumsum(changes),
+    start = lag(end,default = 0),
+    ypos  = rev(seq_len(n())), 
+    next_ypos = lead(ypos,default = 0),# 6..1 within each group
+    pad   = max(abs(changes)) * 0.03,
+    label_x     = end + ifelse(changes > 0, pad, -pad),
+    label_y     = ypos,
+    label_hjust = ifelse(changes > 0, 0, 1),
+    change_label = paste0(ifelse(changes > 0, "+", ""),
+                          scales::comma(round(changes)))
+  ) %>%
+  ungroup() 
 
 
 
@@ -2660,15 +2862,220 @@ return(combined_harmonised_pyramid)
 
 
 
+waterfall_func = function(eth = "WBI"){
+
+#----------------------------------------------
+#for 2022-2032
+#filter it 
+waterfallplot_data_ready =waterfallplot_data %>% 
+  filter(eth_code == eth)
+
+
+start_pop = CCM_result_list[[3]]$annual_components_byeth %>%
+  filter(year == 2022, eth_code == eth) %>%
+  pull(end_population)
+
+end_pop = CCM_result_list[[3]]$annual_components_byeth %>%
+  filter(year == 2032, eth_code == eth) %>%
+  pull(end_population)
+
+pct_change = round((end_pop / start_pop - 1) * 100)
+
+net_change = end_pop - start_pop
+M = max(abs(waterfallplot_data_ready$changes))
+M = ceiling(M / 10^(nchar(round(M)) - 2)) * 10^(nchar(round(M)) - 2) 
+
+#title name for 2022-2032 changes 
+title_2232 = paste0("Components of Projected ", eth,  " Population Change")
+
+#---------------------------------------------
+waterfall_2232 = ggplot(waterfallplot_data_ready)+
+  geom_segment(aes(x = -Inf, xend = start,
+                   y = ypos , yend = ypos),
+               colour = "grey80",
+               linewidth = 0.5)+
+  geom_segment(aes(x=start, xend=end,
+                   y=ypos, yend =ypos,
+                   colour = changes>0),
+               arrow = arrow(length = unit(8, "pt")),
+               linewidth = 1)+
+  geom_segment(aes(x = end,xend = end,
+                   y = ypos, yend = next_ypos),
+               colour = "grey50",
+               linewidth = 1,
+               linetype = "dashed")+
+  geom_segment(data=waterfallplot_data_ready %>% filter(details=="Emigration"),
+               aes(x=end,xend=end,
+                   y=1,yend=0),
+               colour = "black",
+               linewidth = 1)+
+  geom_segment(x = 0,xend = 0,
+               y = 6, yend = 6.8,
+               colour = "black",
+               linewidth = 1)+
+  # 2022 population circle
+  annotate("point",x = 0, y = 6.8,
+           shape = 21, fill = "white",
+           size = 4, stroke = 1) +
+  # 2032 population circle
+  annotate("point",x = net_change, y = 0,
+           shape = 21, fill = "white",
+           size = 4, stroke = 1)+
+  # 2022 population label
+  annotate("text", x = 0, y = 7.15,
+           label = paste0("2022 population: ", 
+                          scales::comma(round(start_pop))),
+           size = 4.5)+
+  # 2032 population label
+  annotate("text", x = net_change, y = -0.5,
+           label = paste0("2032 projected population: \n", 
+                          scales::comma(round(end_pop)),
+                          " (",pct_change, "%)"),
+           size = 4.5)+
+  geom_text(aes(x = label_x,y = label_y,
+                label = change_label,
+                hjust = label_hjust,
+                colour = changes > 0),
+            fontface = "bold",
+            size = 4,
+            show.legend = FALSE)+
+  scale_y_continuous(breaks = c(6.1,5.1,4.1,3.1,2.1,1.1), labels = c("Births", "Deaths",
+                                                                     "Internal in-migration",
+                                                                     "Internal out-migration",
+                                                                     "Immigration",
+                                                                     "Emigration"),
+                     limits = c(-0.6, 7.5)) +
+  scale_colour_manual(values = c("TRUE" = "#2166A5",
+                                 "FALSE" = "#FF5A60"),
+                      guide = "none")+
+  scale_x_continuous(limits = c(-M, M) * 2, labels = scales::comma)+
+  labs(x="",
+       y="",
+       title = title_2232,
+       subtitle = "Birmingham, 2022-2032")+
+  theme_bcc(gridline_x = F,
+            gridline_y = F,
+            base_size = 12)+
+  theme(axis.text.x  = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.y = element_blank(),
+        axis.line.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        plot.title = element_text(hjust = 1),
+        plot.subtitle = element_text(hjust = -0.75),
+        axis.text.y = element_text(size=12))
+
+
+#----------------------------------------------
+#for 2022-2032
+#filter it 
+
+
+waterfallplot_data_ready3247 = waterfallplot_3247data %>% 
+  filter(eth_code == eth)
+
+
+start_pop3247 = CCM_result_list[[3]]$annual_components_byeth %>%
+  filter(year == 2032, eth_code == eth) %>%
+  pull(end_population)
+
+end_pop3247 = CCM_result_list[[3]]$annual_components_byeth %>%
+  filter(year == 2047, eth_code == eth) %>%
+  pull(end_population)
+
+pct_change3247 = round((end_pop3247 / start_pop3247 - 1) * 100)
+
+net_change3247 = end_pop3247 - start_pop3247
+M3247 = max(abs(waterfallplot_data_ready3247$changes))
+M3247 = ceiling(M3247 / 10^(nchar(round(M3247)) - 2)) * 10^(nchar(round(M3247)) - 2) 
+
+#title name for 2022-2032 changes 
+title_3247 = paste0("Components of Projected ", eth,  " Population Change")
+
+
+#---3247 plot----------------------------------------------
+waterfall_3247 = ggplot(waterfallplot_data_ready3247)+
+  geom_segment(aes(x = -Inf, xend = start,
+                   y = ypos , yend = ypos),
+               colour = "grey80",
+               linewidth = 0.5)+
+  geom_segment(aes(x=start, xend=end,
+                   y=ypos, yend =ypos,
+                   colour = changes>0),
+               arrow = arrow(length = unit(8, "pt")),
+               linewidth = 1)+
+  geom_segment(aes(x = end,xend = end,
+                   y = ypos, yend = next_ypos),
+               colour = "grey50",
+               linewidth = 1,
+               linetype = "dashed")+
+  geom_segment(data=waterfallplot_data_ready3247 %>% filter(details=="Emigration"),
+               aes(x=end,xend=end,
+                   y=1,yend=0),
+               colour = "black",
+               linewidth = 1)+
+  geom_segment(x = 0,xend = 0,
+               y = 6, yend = 6.8,
+               colour = "black",
+               linewidth = 1)+
+  # 2032 population circle
+  annotate("point",x = 0, y = 6.8,
+           shape = 21, fill = "white",
+           size = 4, stroke = 1) +
+  # 2047 population circle
+  annotate("point",x = net_change3247, y = 0,
+           shape = 21, fill = "white",
+           size = 4, stroke = 1)+
+  # 2032 population label
+  annotate("text", x = 0, y = 7.15,
+           label = paste0("2032 population: ", 
+                          scales::comma(round(start_pop3247))),
+           size = 4.5)+
+  # 2047 population label
+  annotate("text", x = net_change3247, y = -0.5,
+           label = paste0("2047 projected population: \n", 
+                          scales::comma(round(end_pop3247)),
+                          " (",pct_change3247, "%)"),
+           size = 4.5)+
+  geom_text(aes(x = label_x,y = label_y,
+                label = change_label,
+                hjust = label_hjust,
+                colour = changes > 0),
+            fontface = "bold",
+            size = 4,
+            show.legend = FALSE)+
+  scale_y_continuous(breaks = c(6.1,5.1,4.1,3.1,2.1,1.1), labels = c("Births", "Deaths",
+                                                                     "Internal in-migration",
+                                                                     "Internal out-migration",
+                                                                     "Immigration",
+                                                                     "Emigration"),
+                     limits = c(-0.6, 7.5)) +
+  scale_colour_manual(values = c("TRUE" = "#2166A5",
+                                 "FALSE" = "#FF5A60"),
+                      guide = "none")+
+  scale_x_continuous(limits = c(-M3247, M3247) * 2, labels = scales::comma)+
+  labs(x="",
+       y="",
+       title = title_3247,
+       subtitle = "Birmingham, 2032-2047")+
+  theme_bcc(gridline_x = F,
+            gridline_y = F,
+            base_size = 12)+
+  theme(axis.text.x  = element_blank(),
+        axis.ticks.x = element_blank(),
+        axis.line.y = element_blank(),
+        axis.line.x = element_blank(),
+        axis.ticks.y = element_blank(),
+        plot.title = element_text(hjust = 1),
+        plot.subtitle = element_text(hjust = -0.75),
+        axis.text.y = element_text(size=12))
+
+#---return both--------------------------------------------
+return(waterfall_2232+waterfall_3247)
 
 
 
-
-
-
-
-
-
+}
 
 
 ```
@@ -2676,167 +3083,586 @@ return(combined_harmonised_pyramid)
 ### White ethnic groups
 
 ```{r}
-#| label: fig-X106-harmonised-white-line
-#| fig-cap: "Projected harmonised ethnic group (WBI and WHO) of Birmingham"
+#| label: fig-line-white
+#| fig-cap: "Projected population by harmonised ethnic group (WBI, WHO), Birmingham, 2022 to 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
 
-
 plot_result_harmonised_line(eth = c("WBI", "WHO"))
-
 
 ```
 
 ```{r}
-#| label: fig-X1061-harmonised-white-pct_pyramid
+#| label: fig-pyramid-white
 #| fig-cap: "Projected population by age, sex and harmonised ethnic group (WBI, WHO), Birmingham, 2022, 2032 and 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
-plot_result_harmonised_pyramid(broad = "White",
-                               eth = c("WBI", "WHO"))
+
+plot_result_harmonised_pyramid(broad = "White", eth = c("WBI", "WHO"))
+
+```
+
+#### White British and Irish (WBI)
+
+```{r}
+#| label: fig-profile-wbi
+#| fig-cap: "Projected change in WBI population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "WBI")
+
+```
+
+```{r}
+#| label: fig-agegroup-wbi
+#| fig-cap: "Projected WBI population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "WBI")
+
+```
+
+```{r}
+#| label: fig-waterfall-wbi
+#| fig-cap: "Components of projected WBI population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "WBI")
 
 
 ```
 
-
-
-
-
-
-
-
-#### White British and Irish (WBI)
-
 #### White Other (WHO)
+
+```{r}
+#| label: fig-profile-who
+#| fig-cap: "Projected change in WHO population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "WHO")
+
+```
+
+```{r}
+#| label: fig-agegroup-who
+#| fig-cap: "Projected WHO population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "WHO")
+
+```
+
+```{r}
+#| label: fig-waterfall-who
+#| fig-cap: "Components of projected WHO population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "WHO")
+
+
+```
 
 ### Asian ethnic groups
 
 ```{r}
-#| label: fig-X108-harmonised-asian-line
-#| fig-cap: "Projected harmonised ethnic group (IND, PAK, CHI, OAS) of Birmingham"
+#| label: fig-line-asian
+#| fig-cap: "Projected population by harmonised ethnic group (IND, PAK, BAN, CHI, OAS), Birmingham, 2022 to 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
 
-
 plot_result_harmonised_line(eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
-
 
 ```
 
 ```{r}
-#| label: fig-X1081-harmonised-asian-pct_pyramid
+#| label: fig-pyramid-asian
 #| fig-cap: "Projected population by age, sex and harmonised ethnic group (IND, PAK, BAN, CHI, OAS), Birmingham, 2022, 2032 and 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
-plot_result_harmonised_pyramid(broad = "Asian",
-                               eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
 
+plot_result_harmonised_pyramid(broad = "Asian", eth = c("IND", "PAK", "BAN", "CHI", "OAS"))
 
 ```
 
 #### Indian (IND)
 
+```{r}
+#| label: fig-profile-ind
+#| fig-cap: "Projected change in IND population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "IND")
+
+```
+
+```{r}
+#| label: fig-agegroup-ind
+#| fig-cap: "Projected IND population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "IND")
+
+```
+
+```{r}
+#| label: fig-waterfall-ind
+#| fig-cap: "Components of projected IND population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "IND")
+
+
+```
+
 #### Pakistani (PAK)
+
+```{r}
+#| label: fig-profile-pak
+#| fig-cap: "Projected change in PAK population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "PAK")
+
+```
+
+```{r}
+#| label: fig-agegroup-pak
+#| fig-cap: "Projected PAK population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "PAK")
+
+```
+
+```{r}
+#| label: fig-waterfall-pak
+#| fig-cap: "Components of projected PAK population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "PAK")
+
+
+```
+
+#### Bangladeshi (BAN)
+
+```{r}
+#| label: fig-profile-ban
+#| fig-cap: "Projected change in BAN population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "BAN")
+
+```
+
+```{r}
+#| label: fig-agegroup-ban
+#| fig-cap: "Projected BAN population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "BAN")
+
+```
+
+```{r}
+#| label: fig-waterfall-ban
+#| fig-cap: "Components of projected BAN population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "BAN")
+
+
+```
 
 #### Chinese (CHI)
 
+```{r}
+#| label: fig-profile-chi
+#| fig-cap: "Projected change in CHI population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "CHI")
+
+```
+
+```{r}
+#| label: fig-agegroup-chi
+#| fig-cap: "Projected CHI population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "CHI")
+
+```
+
+```{r}
+#| label: fig-waterfall-chi
+#| fig-cap: "Components of projected CHI population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "CHI")
+
+
+```
+
 #### Other Asian (OAS)
+
+```{r}
+#| label: fig-profile-oas
+#| fig-cap: "Projected change in OAS population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "OAS")
+
+```
+
+```{r}
+#| label: fig-agegroup-oas
+#| fig-cap: "Projected OAS population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "OAS")
+
+```
+
+```{r}
+#| label: fig-waterfall-oas
+#| fig-cap: "Components of projected OAS population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "OAS")
+
+
+```
 
 ### Black ethnic groups
 
 ```{r}
-#| label: fig-X109-harmonised-black-line
-#| fig-cap: "Projected harmonised ethnic group (BLA, BLC,OBL) of Birmingham"
+#| label: fig-line-black
+#| fig-cap: "Projected population by harmonised ethnic group (BLA, BLC, OBL), Birmingham, 2022 to 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
 
-
 plot_result_harmonised_line(eth = c("BLA", "BLC", "OBL"))
-
 
 ```
 
 ```{r}
-#| label: fig-X1091-harmonised-black-pct_pyramid
+#| label: fig-pyramid-black
 #| fig-cap: "Projected population by age, sex and harmonised ethnic group (BLA, BLC, OBL), Birmingham, 2022, 2032 and 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
-plot_result_harmonised_pyramid(broad = "Black",
-                               eth = c("BLA", "BLC", "OBL"))
+
+plot_result_harmonised_pyramid(broad = "Black", eth = c("BLA", "BLC", "OBL"))
+
+```
+
+#### Black African (BLA)
+
+```{r}
+#| label: fig-profile-bla
+#| fig-cap: "Projected change in BLA population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "BLA")
+
+```
+
+```{r}
+#| label: fig-agegroup-bla
+#| fig-cap: "Projected BLA population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "BLA")
+
+```
+
+```{r}
+#| label: fig-waterfall-bla
+#| fig-cap: "Components of projected BLA population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "BLA")
 
 
 ```
 
-
-#### Black African (BLA)
-
 #### Black Caribbean (BLC)
 
+```{r}
+#| label: fig-profile-blc
+#| fig-cap: "Projected change in BLC population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "BLC")
+
+```
+
+```{r}
+#| label: fig-agegroup-blc
+#| fig-cap: "Projected BLC population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "BLC")
+
+```
+
+```{r}
+#| label: fig-waterfall-blc
+#| fig-cap: "Components of projected BLC population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "BLC")
+
+
+```
+
 #### Other Black (OBL)
+
+```{r}
+#| label: fig-profile-obl
+#| fig-cap: "Projected change in OBL population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "OBL")
+
+```
+
+```{r}
+#| label: fig-agegroup-obl
+#| fig-cap: "Projected OBL population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "OBL")
+
+```
+
+```{r}
+#| label: fig-waterfall-obl
+#| fig-cap: "Components of projected OBL population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "OBL")
+
+
+```
 
 ### Mixed and Other ethnic groups
 
 ```{r}
-#| label: fig-X1010-harmonised-mixed-line
-#| fig-cap: "Projected harmonised ethnic group (MIX, OTH) of Birmingham"
+#| label: fig-line-mixedother
+#| fig-cap: "Projected population by harmonised ethnic group (MIX, OTH), Birmingham, 2022 to 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
 
-
 plot_result_harmonised_line(eth = c("MIX", "OTH"))
-
 
 ```
 
-
 #### Mixed (MIX)
 
-
 ```{r}
-#| label: fig-X1011-harmonised-Mix-pct_pyramid
+#| label: fig-pyramid-mix
 #| fig-cap: "Projected population by age, sex and harmonised ethnic group (MIX), Birmingham, 2022, 2032 and 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
-plot_result_harmonised_pyramid(broad = "Mixed",
-                               eth = c("MIX"))
+
+plot_result_harmonised_pyramid(broad = "Mixed", eth = c("MIX"))
+
+```
+
+```{r}
+#| label: fig-profile-mix
+#| fig-cap: "Projected change in MIX population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "MIX")
+
+```
+
+```{r}
+#| label: fig-agegroup-mix
+#| fig-cap: "Projected MIX population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "MIX")
+
+```
+
+```{r}
+#| label: fig-waterfall-mix
+#| fig-cap: "Components of projected MIX population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "MIX")
 
 
 ```
 
 #### Other ethnic group (OTH)
 
-
 ```{r}
-#| label: fig-X1012-harmonised-OTH-pct_pyramid
+#| label: fig-pyramid-oth
 #| fig-cap: "Projected population by age, sex and harmonised ethnic group (OTH), Birmingham, 2022, 2032 and 2047"
 #| fig-width: 10
 #| fig-height: 9
 #| warning: false
 #| message: false
-plot_result_harmonised_pyramid(broad = "Other",
-                               eth = c("OTH"))
 
+plot_result_harmonised_pyramid(broad = "Other", eth = c("OTH"))
 
 ```
 
+```{r}
+#| label: fig-profile-oth
+#| fig-cap: "Projected change in OTH population by age and sex, Birmingham, 2022, 2032 and 2047"
+#| fig-width: 10
+#| fig-height: 4.5
+#| warning: false
+#| message: false
+
+pyramid_profile_harmonised(select_ethnic = "OTH")
+
+```
+
+```{r}
+#| label: fig-agegroup-oth
+#| fig-cap: "Projected OTH population by age group, Birmingham, 2022 to 2047"
+#| fig-width: 10
+#| fig-height: 10
+#| warning: false
+#| message: false
+
+change_agegroup_func(eth = "OTH")
+
+```
+
+```{r}
+#| label: fig-waterfall-oth
+#| fig-cap: "Components of projected OTH population change, Birmingham, 2022-2032 and 2032-2047"
+#| fig-width: 10
+#| fig-height: 8
+#| warning: false
+#| message: false
+
+waterfall_func(eth = "OTH")
 
 
+```
 
 ## Comparison to ONS SNPP 2022
 
